@@ -1,2 +1,2 @@
-# roots: no tests yet -- migrated from Universal mixedprecision/roots in a
-# follow-up; see docs/roadmap.md.
+# Root finding (bisection / Newton / secant).
+mpnumerics_add_test(test_root_smoke)
