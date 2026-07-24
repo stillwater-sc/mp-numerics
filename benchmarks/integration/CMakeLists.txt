@@ -1,0 +1,2 @@
+add_executable(simpson_benchmark simpson_benchmark.cpp)
+target_link_libraries(simpson_benchmark PRIVATE sw::mp_numerics)
