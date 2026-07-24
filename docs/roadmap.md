@@ -35,7 +35,11 @@ kernels where the method uses linear algebra, e.g. Chebyshev approximation):
 - [x] `optimization` -- golden-section 1-D minimization
   (`include/sw/mp_numerics/optimization.hpp`): `optim_precision` app +
   `test_optim_smoke`. Minimizer accuracy floors at ~sqrt(eps) of the type.
-- `approximation` -- Chebyshev / minimax approximation (uses MTL5 dense LA).
+- [x] `approximation` -- truncated Chebyshev-series approximation
+  (`include/sw/mp_numerics/approximation.hpp`, coefficients + Clenshaw eval):
+  `cheb_precision` app + `test_cheb_smoke`. double converges geometrically;
+  narrow types stall at their coefficient-accumulation floor. (A least-squares
+  variant using MTL5 QR is a possible follow-up.)
 
 ## Milestone 2: mixed-precision numerics studies
 
