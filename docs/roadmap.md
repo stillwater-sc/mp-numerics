@@ -23,7 +23,10 @@ Migrate from Universal `mixedprecision/{roots,integration,interpolation,
 optimization,approximation}`, re-expressed on Universal precisions (and MTL5
 kernels where the method uses linear algebra, e.g. Chebyshev approximation):
 
-- `roots` -- polynomial root finding (`rpoly`) across precisions.
+- [x] `roots` -- scalar root finding (bisection/Newton/secant,
+  `include/sw/mp_numerics/roots.hpp`) across precisions: `root_precision` app +
+  `test_root_smoke`. The Jenkins-Traub polynomial root finder (`rpoly`) is a
+  larger follow-up.
 - `integration` -- extend the quadrature study (adaptive rules, Gauss).
 - `interpolation` -- polynomial / spline interpolation error at low precision.
 - `optimization` -- line-search / descent precision study.

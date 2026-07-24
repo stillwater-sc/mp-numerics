@@ -4,3 +4,6 @@
 
 # Composite Simpson quadrature accuracy across number precisions.
 add_subdirectory(integration/simpson_precision)
+
+# Scalar root finding (Newton / secant) accuracy across number precisions.
+add_subdirectory(roots/root_precision)
