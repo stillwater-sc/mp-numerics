@@ -1,2 +1,2 @@
-# approximation: no tests yet -- migrated from Universal mixedprecision/approximation in a
-# follow-up; see docs/roadmap.md.
+# Function approximation (Chebyshev series).
+mpnumerics_add_test(test_cheb_smoke)
