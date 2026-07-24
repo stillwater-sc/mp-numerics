@@ -1,0 +1,2 @@
+add_executable(simpson_precision simpson_precision.cpp)
+target_link_libraries(simpson_precision PRIVATE sw::mp_numerics)
