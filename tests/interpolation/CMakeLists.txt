@@ -1,2 +1,2 @@
-# interpolation: no tests yet -- migrated from Universal mixedprecision/interpolation in a
-# follow-up; see docs/roadmap.md.
+# Polynomial interpolation.
+mpnumerics_add_test(test_interp_smoke)
