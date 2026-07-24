@@ -7,3 +7,8 @@ add_subdirectory(integration/simpson_precision)
 
 # Scalar root finding (Newton / secant) accuracy across number precisions.
 add_subdirectory(roots/root_precision)
+
+# Newton interpolation accuracy across number precisions.
+add_subdirectory(interpolation/interp_precision)
+# 1-D golden-section minimization accuracy across number precisions.
+add_subdirectory(optimization/optim_precision)

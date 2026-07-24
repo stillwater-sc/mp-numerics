@@ -28,8 +28,13 @@ kernels where the method uses linear algebra, e.g. Chebyshev approximation):
   `test_root_smoke`. The Jenkins-Traub polynomial root finder (`rpoly`) is a
   larger follow-up.
 - `integration` -- extend the quadrature study (adaptive rules, Gauss).
-- `interpolation` -- polynomial / spline interpolation error at low precision.
-- `optimization` -- line-search / descent precision study.
+- [x] `interpolation` -- Newton divided-difference interpolation
+  (`include/sw/mp_numerics/interpolation.hpp`): `interp_precision` app +
+  `test_interp_smoke`. High-degree interpolation amplifies low-precision
+  roundoff (posit<16,2>/cfloat<16,5> degrade as node count grows).
+- [x] `optimization` -- golden-section 1-D minimization
+  (`include/sw/mp_numerics/optimization.hpp`): `optim_precision` app +
+  `test_optim_smoke`. Minimizer accuracy floors at ~sqrt(eps) of the type.
 - `approximation` -- Chebyshev / minimax approximation (uses MTL5 dense LA).
 
 ## Milestone 2: mixed-precision numerics studies

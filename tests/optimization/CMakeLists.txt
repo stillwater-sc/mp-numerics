@@ -1,2 +1,2 @@
-# optimization: no tests yet -- migrated from Universal mixedprecision/optimization in a
-# follow-up; see docs/roadmap.md.
+# 1-D optimization.
+mpnumerics_add_test(test_optim_smoke)
