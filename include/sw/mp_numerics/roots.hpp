@@ -4,8 +4,8 @@
 // Bisection, Newton, and secant iterations, generic over the arithmetic type so
 // the same solver runs in double, float, posit, cfloat, ... and the study can
 // observe how the working precision limits the achievable root accuracy. Scalar
-// arithmetic only; the heavier polynomial root finders (Jenkins-Traub rpoly) are
-// a follow-up (see docs/roadmap.md).
+// arithmetic only; the polynomial (all-roots) Jenkins-Traub finder lives in
+// polyroots.hpp (sw::mp_numerics::poly_roots).
 
 #include <cstddef>
 

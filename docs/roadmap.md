@@ -25,8 +25,9 @@ kernels where the method uses linear algebra, e.g. Chebyshev approximation):
 
 - [x] `roots` -- scalar root finding (bisection/Newton/secant,
   `include/sw/mp_numerics/roots.hpp`) across precisions: `root_precision` app +
-  `test_root_smoke`. The Jenkins-Traub polynomial root finder (`rpoly`) is a
-  larger follow-up.
+  `test_root_smoke`. The Jenkins-Traub polynomial (all-roots) finder `rpoly`
+  is ported in `include/sw/mp_numerics/polyroots.hpp`: `rpoly_precision` app +
+  `test_rpoly` (universal#1211).
 - `integration` -- extend the quadrature study (adaptive rules, Gauss).
 - [x] `interpolation` -- Newton divided-difference interpolation
   (`include/sw/mp_numerics/interpolation.hpp`): `interp_precision` app +
