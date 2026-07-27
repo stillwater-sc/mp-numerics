@@ -59,7 +59,7 @@ void study(const std::string& name, Builder build,
     row<double>                                     ("double",       build.template operator()<double>(),       known);
     row<posit<16, 2>>                               ("posit<16,2>",  build.template operator()<posit<16, 2>>(),  known);
     row<posit<32, 2>>                               ("posit<32,2>",  build.template operator()<posit<32, 2>>(),  known);
-    row<posit<64, 3>>                               ("posit<64,3>",  build.template operator()<posit<64, 3>>(),  known);
+    row<posit<64, 2>>                               ("posit<64,2>",  build.template operator()<posit<64, 2>>(),  known);
     row<cfloat<32, 8, std::uint32_t, true, false, false>>("cfloat<32,8>", build.template operator()<cfloat<32, 8, std::uint32_t, true, false, false>>(), known);
     std::cout << '\n';
 }

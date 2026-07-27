@@ -67,7 +67,7 @@ int main() {
     run<float>("float");
     run<double>("double");
     run<posit<32, 2>>("posit<32,2>");
-    run<posit<64, 3>>("posit<64,3>");
+    run<posit<64, 2>>("posit<64,2>");
     std::cout << (failures ? "rpoly smoke: FAILED\n" : "rpoly smoke: PASS\n");
     return failures ? 1 : 0;
 }
