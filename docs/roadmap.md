@@ -27,7 +27,12 @@ kernels where the method uses linear algebra, e.g. Chebyshev approximation):
   `include/sw/mp_numerics/roots.hpp`) across precisions: `root_precision` app +
   `test_root_smoke`. The Jenkins-Traub polynomial (all-roots) finder `rpoly`
   is ported in `include/sw/mp_numerics/polyroots.hpp`: `rpoly_precision` app +
-  `test_rpoly` (universal#1211).
+  `test_rpoly` (universal#1211). The engine is the canonical ak1 / Netlib
+  TOMS-493 reference implementation templatized over `Real`
+  (`include/sw/mp_numerics/detail/rpoly_ak1.hpp`, mp-numerics#7), with a
+  precision-aware coefficient-scaling gate so tapered types (posit) reach their
+  precision floor (posit<64,2> is exact on well-separated integer roots; double
+  3.6e-15 vs the earlier port's 1.6e-2 on the same case).
 - `integration` -- extend the quadrature study (adaptive rules, Gauss).
 - [x] `interpolation` -- Newton divided-difference interpolation
   (`include/sw/mp_numerics/interpolation.hpp`): `interp_precision` app +
