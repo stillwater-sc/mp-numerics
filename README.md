@@ -46,8 +46,6 @@ The repo is organized by numerical-method category: **integration**, **roots**,
 ```
 include/sw/mp_numerics/
   integration.hpp                # composite Simpson / trapezoidal, generic over Real
-include/mtl/math/
-  quire_accumulator.hpp          # MTL5 accumulator_traits <- Universal quire bridge
 applications/
   integration/simpson_precision/ # quadrature error across number precisions
 benchmarks/

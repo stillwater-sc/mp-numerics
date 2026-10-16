@@ -14,8 +14,11 @@
   time).
 - Repo organized by numerical-method category: `integration/`, `roots/`,
   `interpolation/`, `optimization/`, `approximation/`.
-- `include/mtl/math/quire_accumulator.hpp`: the MTL5 `accumulator_traits` <-
-  Universal quire bridge (the coupling that must not live in MTL5).
+- Exact quire accumulation: pass `quire<T>` as the MTL5 accumulator directly.
+  Universal defines the quire's `accumulator_*` functions and MTL5's
+  `accumulator_traits` finds them by argument-dependent lookup, so neither
+  library includes the other. This replaced the `quire_accumulator.hpp` bridge
+  header formerly copied into this repo (stillwater-sc/mtl5#582).
 
 ## Milestone 1: migrate the Universal numerics experiments
 
