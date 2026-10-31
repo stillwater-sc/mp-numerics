@@ -41,17 +41,22 @@ cmake -B build \
 ## Layout
 
 The repo is organized by numerical-method category: **integration**, **roots**,
-**interpolation**, **optimization**, **approximation**.
+**interpolation**, **optimization**, **approximation**, **linalg**.
 
 ```
 include/sw/mp_numerics/
   integration.hpp                # composite Simpson / trapezoidal, generic over Real
+  exact.hpp                      # exact read-out of binary number types (ereal expansions)
+  rotations.hpp reflectors.hpp   # Givens rotations and Householder reflectors, four scalings
+  operator_metrics.hpp           # exact error measures of a rotation or reflector
 applications/
   integration/simpson_precision/ # quadrature error across number precisions
 benchmarks/
   integration/                   # accuracy-per-unit-time across number systems
+  linalg/givens_householder/     # one rotation or reflector at a time, per type (#13)
 tests/
   integration/                   # composite Simpson smoke test across types
+  linalg/                        # exact read-out; rotation and reflector findings
   roots/ interpolation/ optimization/ approximation/   # (no tests yet -- roadmap)
 docs/roadmap.md                  # milestones and migration plan
 ```

@@ -13,8 +13,10 @@ endfunction()
 #   interpolation -- polynomial / spline interpolation
 #   optimization  -- line search / descent
 #   approximation -- Chebyshev / minimax approximation
+#   linalg        -- linear-algebra kernels across number systems
 add_subdirectory(integration)
 add_subdirectory(roots)
 add_subdirectory(interpolation)
 add_subdirectory(optimization)
 add_subdirectory(approximation)
+add_subdirectory(linalg)
