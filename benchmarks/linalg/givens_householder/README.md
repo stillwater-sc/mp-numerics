@@ -91,7 +91,7 @@ eps. And dd and qd carry a bit or three more than their `epsilon()` (2^-105 and
 | dd, qd | `sw::universal::dd` and `qd`: double's range, two and four times its precision |
 
 `test_rotations` checks that cfloat<32,8> and cfloat<64,11> give float's and
-double's measures bit for bit through every operator, subnormals to overflow,
+double's measures bit for bit through all seven operators, subnormals to overflow,
 so the cfloat rows can be read as the corresponding IEEE type's would be.
 
 ## Findings
@@ -251,10 +251,10 @@ Not changed here; reported so the results can be read correctly.
 
 | figure | shows |
 |---|---|
-| `scale_clean_range.svg` | the share of each type's exponent range where every sample is clean, per operator |
-| `scale_rotations_*.svg`, `scale_reflectors_*.svg` | worst orthogonality across the exponent range, one panel per type |
+| `scale_clean_range.svg` | the share of each type's exponent range where every sample is clean, per operator; each sampled exponent counts for the span of exponents it stands for |
+| `scale_rotations_*.svg`, `scale_reflectors_*.svg` | worst orthogonality across the exponent range, one panel per type; gross and non-finite rows are drawn in a band above the largest finite error |
 | `tail_reflectors_*.svg` | worst orthogonality of the three reflectors across the tail sweep |
-| `repeat_power.svg`, `repeat_product.svg` | deviation against k for repeated application, one line per type |
+| `repeat_power.svg`, `repeat_product.svg` | deviation against k for repeated application, one line per type, over the trials that stayed finite; an x marks a checkpoint where some trials overflowed |
 
 ![Clean share of the exponent range](figures/scale_clean_range.svg)
 

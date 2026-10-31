@@ -31,7 +31,6 @@ STYLE = {
     'householder_lapack_pow2': ('#2ca02c', '-'),
 }
 FLOOR = 1e-1   # errors below 0.1 eps are drawn at the floor of the log axis
-GROSS = 1e20   # a gross or non-finite sample is drawn above every finite error
 
 
 def load(d, name):
@@ -59,11 +58,31 @@ def clean(r):
     return int(r['gross']) + int(r['nonfinite']) == 0
 
 
-def worst_eps(r):
-    """orth_max in eps, or GROSS where any sample was gross or non-finite."""
+def finite_eps(r):
+    """orth_max in eps of a clean row, or None."""
     if not clean(r) or r['orth_max'] == 'nan':
-        return GROSS
+        return None
     return max(float(r['orth_max']) / float(r['eps']), FLOOR)
+
+
+def gross_level(rows):
+    """Where gross and non-finite rows are drawn: two decades above the
+    largest finite error among the rows plotted, so none is clipped."""
+    finite = [v for v in map(finite_eps, rows) if v is not None]
+    top = max(finite, default=1.0)
+    return 10.0 ** (math.ceil(math.log10(max(top, 1.0))) + 2)
+
+
+def clean_share(rs):
+    """The share of the exponent range on which every sample is clean. Each
+    sampled k stands for the half-intervals to its neighbours, so the closely
+    spaced exponents scale_grid adds at each end weigh what they cover."""
+    rs = sorted(rs, key=lambda r: float(r['param']))
+    ks = [float(r['param']) for r in rs]
+    if len(ks) == 1:
+        return float(clean(rs[0]))
+    w = [((ks[min(i + 1, len(ks) - 1)] - ks[max(i - 1, 0)]) / 2) for i in range(len(ks))]
+    return sum(wi for wi, r in zip(w, rs) if clean(r)) / sum(w)
 
 
 def heatmap(scale_rows, d):
@@ -75,7 +94,7 @@ def heatmap(scale_rows, d):
         row = []
         for o in OPS:
             rs = g[t].get(o, [])
-            row.append(sum(clean(r) for r in rs) / len(rs) if rs else float('nan'))
+            row.append(clean_share(rs) if rs else float('nan'))
         data.append(row)
     fig, ax = plt.subplots(figsize=(7.2, 0.2 * len(types) + 1.6))
     im = ax.imshow(data, aspect='auto', cmap='RdYlGn', vmin=0, vmax=1)
@@ -100,6 +119,7 @@ def family_panels(rows, families, ops, xkey, xlabel, title, name, d, normalize_x
     nrows = math.ceil(len(types) / cols)
     fig, axes = plt.subplots(nrows, cols, figsize=(10, 1.9 * nrows + 1.0), squeeze=False, sharey=True,
                              layout='constrained')
+    gross = gross_level([r for t in types for o in ops for r in g[t].get(o, [])])
     for ax, t in zip(axes.flat, types):
         for o in ops:
             rs = g[t].get(o, [])
@@ -110,10 +130,11 @@ def family_panels(rows, families, ops, xkey, xlabel, title, name, d, normalize_x
                 lo, hi = min(xs), max(xs)
                 xs = [(x - lo) / (hi - lo) if hi > lo else 0.0 for x in xs]
             color, ls = STYLE[o]
-            ax.plot(xs, [worst_eps(r) for r in rs], color=color, ls=ls, lw=1, label=o)
+            ys = [finite_eps(r) for r in rs]
+            ax.plot(xs, [gross if y is None else y for y in ys], color=color, ls=ls, lw=1, label=o)
         ax.set_yscale('log')
-        ax.set_ylim(FLOOR / 2, GROSS * 10)
-        ax.axhline(1e19, color='#999', lw=0.5)
+        ax.set_ylim(FLOOR / 2, gross * 10)
+        ax.axhline(gross / 10, color='#999', lw=0.5)
         ax.set_title(t, fontsize=8)
         ax.tick_params(labelsize=6)
     for ax in axes.flat[len(types):]:
@@ -141,10 +162,17 @@ def repeat_panels(rows, d):
             for (op, t, fam), rs in series.items():
                 if op != o:
                     continue
-                pts = [(int(r['k']), float(r['dev_max']) / float(r['eps'])) for r in rs
-                       if r['dev_max'] != 'nan' and int(r['nonfinite']) == 0]
+                # dev_max is over the trials that stayed finite; a checkpoint
+                # where some overflowed is still drawn, and marked with an x.
+                pts = [(int(r['k']), float(r['dev_max']) / float(r['eps']), int(r['nonfinite']) > 0)
+                       for r in rs if r['dev_max'] != 'nan']
                 if pts:
-                    ax.plot(*zip(*pts), color=fam_color.get(fam, 'k'), lw=0.7, alpha=0.7)
+                    color = fam_color.get(fam, 'k')
+                    ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color, lw=0.7, alpha=0.7)
+                    over = [p for p in pts if p[2]]
+                    if over:
+                        ax.plot([p[0] for p in over], [p[1] for p in over], ls='none', marker='x',
+                                ms=3, color=color)
             ax.set_xscale('log', base=2)
             ax.set_yscale('log')
             ax.set_title(o, fontsize=8)
@@ -155,7 +183,8 @@ def repeat_panels(rows, d):
         axes.flat[-1].legend(loc='center', fontsize=8, frameon=False)
         what = ('one operator applied k times to unit vectors' if mode == 'power'
                 else 'product of k fresh operators on an 8 x 8 Q')
-        fig.suptitle('Repeated application (%s): worst deviation / eps' % what, fontsize=9)
+        fig.suptitle('Repeated application (%s): worst deviation / eps over the finite trials; '
+                     'x: some trials overflowed' % what, fontsize=9)
         fig.supxlabel('k', fontsize=8)
         save(fig, d, 'repeat_' + mode)
 

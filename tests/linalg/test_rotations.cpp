@@ -86,7 +86,7 @@ bool same_error(const operator_error& x, const operator_error& y) {
            x.annih == y.annih && x.annih_fp == y.annih_fp;
 }
 
-/// Every operator gives the same measures in H as in IEEE type F, at every
+/// All seven operators give the same measures in H as in IEEE type F, at every
 /// scale from F's subnormals to its overflow: cfloat rounds as IEEE 754 does,
 /// so its results in the study can be read as the hardware type's would be.
 template <typename F, typename H>
@@ -99,8 +99,10 @@ bool matches_ieee(std::mt19937_64& g) {
             const F fa = scale_pow2(F(std::cos(th)), k), fb = scale_pow2(F(std::sin(th)), k);
             if (fa == F(0) && fb == F(0)) continue;
             const H ha(fa), hb(fb);
-            same = same && same_error(rotation_error(givens_unscaled(fa, fb), fa, fb, k),
-                                      rotation_error(givens_unscaled(ha, hb), ha, hb, k))
+            same = same && same_error(rotation_error(mtl5_rotation(fa, fb), fa, fb, k),
+                                      rotation_error(mtl5_rotation(ha, hb), ha, hb, k))
+                        && same_error(rotation_error(givens_max_scaled(fa, fb), fa, fb, k),
+                                      rotation_error(givens_max_scaled(ha, hb), ha, hb, k))
                         && same_error(rotation_error(givens_safe_scaled(fa, fb), fa, fb, k),
                                       rotation_error(givens_safe_scaled(ha, hb), ha, hb, k))
                         && same_error(rotation_error(givens_pow2_scaled(fa, fb), fa, fb, k),
