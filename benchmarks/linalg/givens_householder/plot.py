@@ -55,7 +55,7 @@ def by_type(rows):
 
 
 def clean(r):
-    return int(r['gross']) + int(r['nonfinite']) == 0
+    return int(r['samples']) > 0 and int(r['gross']) + int(r['nonfinite']) == 0
 
 
 def finite_eps(r):
@@ -76,7 +76,8 @@ def gross_level(rows):
 def clean_share(rs):
     """The share of the exponent range on which every sample is clean. Each
     sampled k stands for the half-intervals to its neighbours, so the closely
-    spaced exponents scale_grid adds at each end weigh what they cover."""
+    spaced exponents scale_grid adds at each end weigh what they cover. A k
+    with no samples (every input flushed to zero) counts as not clean."""
     rs = sorted(rs, key=lambda r: float(r['param']))
     ks = [float(r['param']) for r in rs]
     if len(ks) == 1:
@@ -90,10 +91,13 @@ def heatmap(scale_rows, d):
     g = by_type(scale_rows)
     types = list(g)
     data = []
+    every = defaultdict(lambda: defaultdict(list))   # by_type, keeping empty rows
+    for r in scale_rows:
+        every[r['type']][r['operator']].append(r)
     for t in types:
         row = []
         for o in OPS:
-            rs = g[t].get(o, [])
+            rs = every[t].get(o, [])
             row.append(clean_share(rs) if rs else float('nan'))
         data.append(row)
     fig, ax = plt.subplots(figsize=(7.2, 0.2 * len(types) + 1.6))
@@ -166,6 +170,10 @@ def repeat_panels(rows, d):
                 # where some overflowed is still drawn, and marked with an x.
                 pts = [(int(r['k']), float(r['dev_max']) / float(r['eps']), int(r['nonfinite']) > 0)
                        for r in rs if r['dev_max'] != 'nan']
+                lost = [int(r['k']) for r in rs if r['dev_max'] == 'nan']
+                if lost:   # every trial overflowed: no deviation to draw
+                    ax.plot(lost, [0.97] * len(lost), ls='none', marker='^', ms=3,
+                            color=fam_color.get(fam, 'k'), transform=ax.get_xaxis_transform(), clip_on=False)
                 if pts:
                     color = fam_color.get(fam, 'k')
                     ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color, lw=0.7, alpha=0.7)
@@ -183,8 +191,8 @@ def repeat_panels(rows, d):
         axes.flat[-1].legend(loc='center', fontsize=8, frameon=False)
         what = ('one operator applied k times to unit vectors' if mode == 'power'
                 else 'product of k fresh operators on an 8 x 8 Q')
-        fig.suptitle('Repeated application (%s): worst deviation / eps over the finite trials; '
-                     'x: some trials overflowed' % what, fontsize=9)
+        fig.suptitle('Repeated application (%s): worst deviation / eps over the finite trials;\n'
+                     'x: some trials overflowed; triangle at the top: every trial overflowed' % what, fontsize=9)
         fig.supxlabel('k', fontsize=8)
         save(fig, d, 'repeat_' + mode)
 

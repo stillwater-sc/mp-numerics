@@ -49,7 +49,7 @@ far below lns<32,23>'s own resolution.
 | `annih_fp` | the same entry computed in the type |
 | `nonfinite` | samples with an infinity or NaN in the operator or its result |
 | `identity` | samples where the routine returned the identity |
-| `gross` | samples with `orth` or `annih` above max(1/2, 16 eps): the operator is wrong beyond what rounding explains. The 16 eps floor matters only for the 8-bit types. A computed value that, scaled like its data, falls outside double's range cannot be read and also counts as gross: it is off by a factor near 2^1000. `r_err` is left out, because at the ends of a tapered or fixed-point range it mostly measures how coarsely the type represents ‖x‖ |
+| `gross` | samples with `orth` or `annih` above max(1/2, 16 eps): the operator is wrong beyond what rounding explains. The 16 eps floor matters only for the 8-bit types. A computed value that, scaled like its data, falls outside double's range cannot be read; it is finite, so it counts as gross, not as `nonfinite`: it is off by a factor near 2^1000. `r_err` is left out, because at the ends of a tapered or fixed-point range it mostly measures how coarsely the type represents ‖x‖ |
 
 `eps` is `std::numeric_limits<T>::epsilon()`, the spacing at 1, and the tables
 give errors in units of it. Two cautions in reading them. A tapered type
@@ -251,10 +251,10 @@ Not changed here; reported so the results can be read correctly.
 
 | figure | shows |
 |---|---|
-| `scale_clean_range.svg` | the share of each type's exponent range where every sample is clean, per operator; each sampled exponent counts for the span of exponents it stands for |
+| `scale_clean_range.svg` | the share of each type's exponent range where every sample is clean, per operator; each sampled exponent counts for the span of exponents it stands for, and one where every input flushes to zero counts as not clean |
 | `scale_rotations_*.svg`, `scale_reflectors_*.svg` | worst orthogonality across the exponent range, one panel per type; gross and non-finite rows are drawn in a band above the largest finite error |
 | `tail_reflectors_*.svg` | worst orthogonality of the three reflectors across the tail sweep |
-| `repeat_power.svg`, `repeat_product.svg` | deviation against k for repeated application, one line per type, over the trials that stayed finite; an x marks a checkpoint where some trials overflowed |
+| `repeat_power.svg`, `repeat_product.svg` | deviation against k for repeated application, one line per type, over the trials that stayed finite; an x marks a checkpoint where some trials overflowed, a triangle at the top one where all did |
 
 ![Clean share of the exponent range](figures/scale_clean_range.svg)
 
