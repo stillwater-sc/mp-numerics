@@ -150,7 +150,7 @@ entry of the normalized v is at most 1, and `householder_lapack_pow2` stays
 within 8.7 eps for every type, at every scale and every tail (5.4 eps outside
 takum). Its only failures are a few non-finite samples in the top binade of
 the 8- and 16-bit cfloats with IEEE overflow, where a value the reflector must
-form, ‖x‖ or the dot product of its application, overflows the type. MTL5's identity fallback (mtl5#662) catches the worst cases, but only
+form, ‖x‖ or the dot product of its application, overflows the type. MTL5's identity fallback ([mtl5#662](https://github.com/stillwater-sc/mtl5/pull/662)) catches the worst cases, but only
 once the error exceeds the tail: from j = 8 in posit<16,2> and j = 40 in
 posit<64,2>.
 
@@ -217,33 +217,40 @@ the bottom edge of the unscaled band, where the squares are subnormal:
 
 ### What this suggests for MTL5
 
-These are candidates, not changes made here:
+These are candidates, not changes made here, now filed as MTL5 issues:
 
 - `apply_givens_rotation`, and the same formula in MINRES and the symmetric
   QR iteration, could scale by an exact power of two before squaring, as
   `givens_pow2_scaled` does. In IEEE that costs two exponent extractions and
   removes the half-range limit; in a posit, takum, dd, lns or fixed point it
   also keeps the accuracy. It was the only rotation clean and accurate in all
-  65 types.
+  65 types ([mtl5#671](https://github.com/stillwater-sc/mtl5/issues/671)).
 - `householder()` could reflect onto −sign(x₀)‖x‖e₁, as `dlarfg` does. That
-  changes the sign of R's diagonal, which MTL5 currently keeps positive.
+  changes the sign of R's diagonal, which MTL5 currently keeps positive
+  ([mtl5#672](https://github.com/stillwater-sc/mtl5/issues/672)).
 - Thresholds taken from `std::numeric_limits` describe where a type overflows,
   not where it is precise. Tapered types, dd and qd need the second.
 
 ### Universal behaviour met along the way
 
-Not changed here; reported so the results can be read correctly.
+Not changed here; filed in Universal so the results can be read correctly.
 
-- `std::numeric_limits<dd>::max()` is an infinity. The study takes dd's top from
-  double.
+- `std::numeric_limits<dd>::max()` is not a normalized pair: its low limb is
+  more than half an ulp of its high limb, so it converts to an infinity, and
+  `max() * dd(1)` is NaN. The study takes dd's top from double
+  ([universal#1882](https://github.com/stillwater-sc/universal/issues/1882)).
 - dd and qd products near `DBL_MAX` return NaN: Universal's Dekker split rounds
   the high half of a value near `DBL_MAX` up to 2^1024, so
-  `dd(DBL_MAX) * dd(0x1p-512)` is a NaN. The study scales dd and qd with their
-  own limb-wise `ldexp`.
+  `dd(DBL_MAX) * dd(0x1p-512)` is a NaN. dd_cascade's division hits the same
+  split. The study scales dd and qd with their own limb-wise `ldexp`
+  ([universal#1881](https://github.com/stillwater-sc/universal/issues/1881)).
 - `std::numeric_limits<dd>::min()` is 2^-969, where dd still has full
-  precision, but `min_exponent` is double's −1021 (finding 11).
-- dd's `sqrt` is not correctly rounded (up to about 2.7 eps); the cfloat, lns,
-  takum and qd square roots are.
+  precision, but `min_exponent` is double's −1021 (finding 11,
+  [universal#1882](https://github.com/stillwater-sc/universal/issues/1882)).
+- dd's `sqrt` is not correctly rounded: up to 7.9 units of 2^-106 (3.96 dd
+  eps) against a qd reference on [1, 4), where dd_cascade's is within 0.75
+  ([universal#1883](https://github.com/stillwater-sc/universal/issues/1883)). The cfloat, lns, takum and qd square roots are correctly
+  rounded.
 
 ## Figures
 
