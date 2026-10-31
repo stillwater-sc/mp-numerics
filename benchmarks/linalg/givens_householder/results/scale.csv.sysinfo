@@ -1,6 +1,6 @@
 label=scale
 study=mp-numerics#13 givens_householder
-generated_utc=2026-10-31T00:30:03Z
+generated_utc=2026-10-31T02:29:17Z
 cpu_arch=x86_64
 cpu_logical_cores=20
 os_name=Linux
@@ -8,7 +8,7 @@ compiler=GCC 15.2.0
 cpp_standard=202002
 build_type=Release
 cxx_flags= -O3 -DNDEBUG
-git_commit=f8bf2d54c2a7
+git_commit=d29d67d1aa3f
 mtl5_commit=d4421896ba14
 universal_commit=2d5c785de873
 long_double_digits=64

@@ -35,8 +35,12 @@ def eps_units(x, eps):
 
 
 def grouped(rows):
+    """Rows by type and operator, leaving out rows with no samples (the
+    bottom of a range that flushes every input to zero)."""
     g = OrderedDict()
     for r in rows:
+        if int(r['samples']) == 0:
+            continue
         g.setdefault(r['type'], defaultdict(list))[r['operator']].append(r)
     return g
 
@@ -83,7 +87,8 @@ def tail_table(rows):
 
 def repeat_table(rows):
     """dev_max at the largest k, in eps: power (one operator k times) and
-    product (k fresh operators on an 8 x 8 Q)."""
+    product (k fresh operators on an 8 x 8 Q). dev_max is over the finite
+    trials; '(n/m inf)' counts the trials that overflowed."""
     last = OrderedDict()
     for r in rows:
         last[(r['type'], r['operator'], r['mode'])] = r
@@ -98,7 +103,13 @@ def repeat_table(rows):
             cells = []
             for o in OPS:
                 r = last.get((t, o, mode))
-                cells.append('-' if r is None else eps_units(num(r['dev_max']), num(r['eps'])))
+                if r is None:
+                    cells.append('-')
+                    continue
+                cell = eps_units(num(r['dev_max']), num(r['eps']))
+                if int(r['nonfinite']):
+                    cell += ' (%s/%s inf)' % (r['nonfinite'], r['trials'])
+                cells.append(cell)
             out.append('| %s | %s |' % (t, ' | '.join(cells)))
         out.append('')
     return '\n'.join(out)

@@ -3,7 +3,10 @@
 //   base.csv scale.csv tail.csv repeat.csv   (each with a .sysinfo sidecar)
 // to the directory given as the first argument (default: the current one).
 //
-//   givens_householder_study [outdir] [--quick] [--family ieee,posit,fixpnt]
+//   givens_householder_study [outdir] [--quick] [--family f1,f2,...]
+//
+// The families are ieee, posit, fixpnt, cfloat, lns, takum, dd and qd; all
+// of them by default.
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -149,9 +152,9 @@ void write_repeat(const std::filesystem::path& path, const std::vector<repeat_ro
 
 /// The base class at a glance: worst errors in units of each type's epsilon.
 void print_summary(const results& r) {
-    std::printf("%-20s %-20s %10s %10s %10s %8s\n", "type", "operator", "orth/eps", "r_err/eps", "annih/eps", "gross");
+    std::printf("%-22s %-24s %10s %10s %10s %8s\n", "type", "operator", "orth/eps", "r_err/eps", "annih/eps", "gross");
     for (const row& w : r.base)
-        std::printf("%-20s %-20s %10.3g %10.3g %10.3g %8zu\n", w.type.name.c_str(), w.op.c_str(),
+        std::printf("%-22s %-24s %10.3g %10.3g %10.3g %8zu\n", w.type.name.c_str(), w.op.c_str(),
                     maximum(w.s.orth) / w.eps, maximum(w.s.r_err) / w.eps, maximum(w.s.annih) / w.eps, w.s.gross);
 }
 
@@ -160,7 +163,7 @@ void print_summary(const results& r) {
 int main(int argc, char** argv) try {
     std::filesystem::path outdir = ".";
     bool quick = false;
-    std::string families = "ieee,posit,fixpnt";
+    std::string families = "ieee,posit,fixpnt,cfloat,lns,takum,dd,qd";
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--quick") quick = true;
@@ -181,6 +184,11 @@ int main(int argc, char** argv) try {
     if (want("ieee"))   run_ieee(cfg, r);
     if (want("posit"))  run_posit(cfg, r);
     if (want("fixpnt")) run_fixpnt(cfg, r);
+    if (want("cfloat")) { run_cfloat_narrow(cfg, r); run_cfloat_mid(cfg, r); run_cfloat_wide(cfg, r); }
+    if (want("lns"))    run_lns(cfg, r);
+    if (want("takum"))  run_takum(cfg, r);
+    if (want("dd"))     run_dd(cfg, r);
+    if (want("qd"))     run_qd(cfg, r);
     const double sec = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 
     const std::pair<const char*, const std::vector<row>*> tables[] = {
