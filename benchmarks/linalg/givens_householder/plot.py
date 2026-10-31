@@ -121,8 +121,8 @@ def family_panels(rows, families, ops, xkey, xlabel, title, name, d, normalize_x
     fig.supxlabel(xlabel, fontsize=8)
     fig.supylabel('worst ||Q^T Q - I|| / eps  (top band: gross or non-finite)', fontsize=8)
     handles, labels = axes.flat[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc='outside lower center', ncol=len(ops), fontsize=7, frameon=False)
-    fig.suptitle(title, fontsize=10)
+    fig.legend(handles, labels, loc='outside upper center', ncol=len(ops), fontsize=7, frameon=False,
+               title=title, title_fontsize=10)
     save(fig, d, name)
 
 
