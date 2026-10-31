@@ -23,9 +23,11 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 
 #include <universal/number/ereal/ereal.hpp>
+#include <universal/number/lns/lns_fwd.hpp>
 
 #include <sw/mp_numerics/pow2.hpp>
 
@@ -40,6 +42,17 @@ using exact = sw::universal::ereal<19>;
 template <typename T>
 struct is_binary_format : std::true_type {};
 
+/// lns values are 2^(m / 2^rbits): read through double, which rounds them
+/// far below the type's own precision.
+template <unsigned nbits, unsigned rbits, typename bt, auto... xtra>
+struct is_binary_format<sw::universal::lns<nbits, rbits, bt, xtra...>> : std::false_type {};
+
+/// Thrown by to_exact for a value it cannot read: one that, scaled by 2^-k,
+/// lies outside double's range, or (were T not binary) has no finite peeling.
+struct unreadable_value : std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
+
 /// x * 2^-k formed in T, then converted to double. A NaN or an infinity in x
 /// stays one, so this doubles as a finiteness test for scaled data.
 template <typename T>
@@ -49,8 +62,8 @@ double scaled_double(const T& x, int k = 0) {
 
 /// The exact value of x * 2^-k. x must be finite, and x * 2^-k must land in
 /// T's normal range for the scaling to be exact; both are the caller's to
-/// ensure. Throws if peeling does not terminate, which would mean T is not a
-/// binary format.
+/// ensure. Throws unreadable_value if peeling does not terminate: x * 2^-k is
+/// beyond double's range, or below it with bits that no double holds.
 template <typename T>
 exact to_exact(const T& x, int k = 0) {
     T y = scale_pow2(x, -k);
@@ -63,7 +76,9 @@ exact to_exact(const T& x, int k = 0) {
             acc += exact(h);
             y = y - T(h);
         }
-        if (y != T(0)) throw std::runtime_error("to_exact: peeling did not terminate");
+        if (y != T(0))
+            throw unreadable_value("to_exact: peeling did not terminate for x * 2^-k with double(x * 2^-k) = " +
+                                     std::to_string(double(scale_pow2(x, -k))) + ", k = " + std::to_string(k));
         return acc;
     }
 }

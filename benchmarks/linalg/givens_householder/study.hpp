@@ -2,7 +2,7 @@
 // givens_householder study (mp-numerics#13): one rotation or reflector at a
 // time, in each number type, measured exactly. See README.md for the method.
 //
-// Six operators, all built for x = (a, b):
+// Seven operators, all built for x = (a, b):
 //   givens_mtl5           mtl::apply_givens_rotation (operation/givens.hpp)
 //   givens_max_scaled     sw::mp_numerics::givens_max_scaled (lapy2's scaling)
 //   givens_safe_scaled    sw::mp_numerics::givens_safe_scaled (Anderson / dlartg)
@@ -36,6 +36,8 @@
 #include <mtl/operation/givens.hpp>
 #include <mtl/operation/householder.hpp>
 
+#include <universal/number/dd/dd_fwd.hpp>
+
 #include <sw/mp_numerics/exact.hpp>
 #include <sw/mp_numerics/operator_metrics.hpp>
 #include <sw/mp_numerics/reflectors.hpp>
@@ -50,6 +52,10 @@ struct type_desc {
     std::string family;   // ieee, posit, fixpnt, ...
     std::string variant;  // e.g. es2, modulo, saturate
     int bits;
+    std::string seed = {};   // seeds the inputs; empty: the name. Variants of
+                             // one format share it, so they see the same inputs.
+
+    std::string seed_name() const { return seed.empty() ? name : seed; }
 };
 
 enum class op_kind {
@@ -93,14 +99,17 @@ struct summary {
     std::size_t samples = 0, nonfinite = 0, identity = 0, gross = 0;
     std::vector<double> orth, r_err, annih, annih_fp;
 
-    void add(const operator_error& e) {
+    void add(const operator_error& e, double eps) {
         ++samples;
         if (!e.finite) { ++nonfinite; return; }
         if (e.identity) ++identity;
-        // Gross: the operator itself is wrong. r_err is left out, because at
+        // Gross: the operator itself is wrong, beyond what rounding explains.
+        // The 16 eps floor matters only for the 8-bit types, whose rounding
+        // alone can put the errors above 1/2. r_err is left out, because at
         // the ends of a tapered or fixed-point range it mostly measures how
         // coarsely T represents ||x||, which no operator can improve.
-        if (e.orth > 0.5 || e.annih > 0.5) ++gross;
+        const double bound = std::max(0.5, 16 * eps);
+        if (e.orth > bound || e.annih > bound) ++gross;
         orth.push_back(e.orth);
         r_err.push_back(e.r_err);
         annih.push_back(e.annih);
@@ -149,13 +158,6 @@ struct seeded {
 };
 
 // ---- the operators, in T -----------------------------------------------------
-
-/// Binary exponent of a positive finite x.
-template <typename T>
-int ilog2(const T& x) {
-    if constexpr (std::is_floating_point_v<T>) return std::ilogb(x);
-    else return std::ilogb(double(x));
-}
 
 /// A reflector with v(0) = 1, from MTL5's householder() or from dlarfg's form.
 template <typename T>
@@ -228,16 +230,24 @@ template <typename T>
 void run_base(const type_desc& t, const config& cfg, results& out) {
     const double eps = double(std::numeric_limits<T>::epsilon());
     for (op_kind op : all_ops) {
-        seeded r(t.name + "/base");
+        seeded r(t.seed_name() + "/base");
         row w{t, eps, op_name(op), "base", 0, {}};
         for (int i = 0; i < cfg.base_samples; ++i) {
             const double th = r.angle();
             const T a(std::cos(th)), b(std::sin(th));
             if (a == T(0) && b == T(0)) continue;
-            w.s.add(apply_and_measure(op, a, b, 0));
+            w.s.add(apply_and_measure(op, a, b, 0), eps);
         }
         out.base.push_back(std::move(w));
     }
+}
+
+/// The largest finite value of T. numeric_limits<dd>::max() is an infinity in
+/// Universal, so dd takes double's, which it holds exactly.
+template <typename T>
+T largest() {
+    if constexpr (std::is_same_v<T, sw::universal::dd>) return T(std::numeric_limits<double>::max());
+    else return std::numeric_limits<T>::max();
 }
 
 /// The exponents k of the scale sweep: every k for a short range, otherwise
@@ -245,7 +255,8 @@ void run_base(const type_desc& t, const config& cfg, results& out) {
 template <typename T>
 std::vector<int> scale_grid(const config& cfg) {
     using L = std::numeric_limits<T>;
-    const int lo = ilog2(L::denorm_min()), hi = ilog2(L::max());
+    using sw::mp_numerics::binary_exponent;
+    const int lo = binary_exponent(L::denorm_min()), hi = binary_exponent(largest<T>());
     std::vector<int> ks;
     if (hi - lo <= cfg.scale_points) {
         for (int k = lo; k <= hi; ++k) ks.push_back(k);
@@ -264,14 +275,14 @@ void run_scale(const type_desc& t, const config& cfg, results& out) {
     const double eps = double(std::numeric_limits<T>::epsilon());
     const std::vector<int> ks = scale_grid<T>(cfg);
     for (op_kind op : all_ops) {
-        seeded r(t.name + "/scale");
+        seeded r(t.seed_name() + "/scale");
         for (int k : ks) {
             row w{t, eps, op_name(op), "scale", double(k), {}};
             for (int i = 0; i < cfg.scale_samples; ++i) {
                 const double th = r.angle();
                 const T a = scale_pow2(T(std::cos(th)), k), b = scale_pow2(T(std::sin(th)), k);
                 if (a == T(0) && b == T(0)) continue;
-                w.s.add(apply_and_measure(op, a, b, k));
+                w.s.add(apply_and_measure(op, a, b, k), eps);
             }
             out.scale.push_back(std::move(w));
         }
@@ -281,16 +292,16 @@ void run_scale(const type_desc& t, const config& cfg, results& out) {
 template <typename T>
 void run_tail(const type_desc& t, const config& cfg, results& out) {
     const double eps = double(std::numeric_limits<T>::epsilon());
-    const int jmax = -ilog2(std::numeric_limits<T>::epsilon()) + 8;
+    const int jmax = -sw::mp_numerics::binary_exponent(std::numeric_limits<T>::epsilon()) + 8;
     for (op_kind op : all_ops) {
-        seeded r(t.name + "/tail");
+        seeded r(t.seed_name() + "/tail");
         for (int j = 0; j <= jmax; ++j) {
             row w{t, eps, op_name(op), "tail", double(j), {}};
             for (int i = 0; i < cfg.tail_samples; ++i) {
                 const T a(r.uniform() < 0.5 ? -1.0 : 1.0);
                 const double m = std::ldexp(1.0 + r.uniform(), -j);
                 const T b(r.uniform() < 0.5 ? -m : m);
-                w.s.add(apply_and_measure(op, a, b, 0));
+                w.s.add(apply_and_measure(op, a, b, 0), eps);
             }
             out.tail.push_back(std::move(w));
         }
@@ -347,9 +358,10 @@ void run_repeat(const type_desc& t, const config& cfg, results& out) {
     using namespace sw::mp_numerics;
     const double eps = double(std::numeric_limits<T>::epsilon());
     for (op_kind op : all_ops) {
-        // power: one operator applied k times to unit vectors.
+        // power: one operator applied k times to unit vectors, measured
+        // against their length as rounded into T.
         {
-            seeded r(t.name + "/power");
+            seeded r(t.seed_name() + "/power");
             std::vector<std::vector<double>> dev;   // [checkpoint][operator]
             std::vector<std::size_t> nonfinite;
             std::vector<int> ks;
@@ -365,13 +377,14 @@ void run_repeat(const type_desc& t, const config& cfg, results& out) {
                     u[i] = T(std::cos(ph));
                     w[i] = T(std::sin(ph));
                 }
+                const std::vector<T> u0 = u, w0 = w;
                 std::size_t c = 0;
                 for (int k = 1; k <= cfg.power_kmax; ++k) {
                     for (int i = 0; i < cfg.power_vectors; ++i) apply(u[i], w[i]);
                     if (k != ks[c]) continue;
                     double worst = 0;
                     for (int i = 0; i < cfg.power_vectors; ++i)
-                        worst = std::max(worst, unit_length_error(u[i], w[i]));
+                        worst = std::max(worst, relative_length_change(u[i], w[i], u0[i], w0[i]));
                     if (std::isfinite(worst)) dev[c].push_back(worst);
                     else ++nonfinite[c];
                     ++c;
@@ -383,7 +396,7 @@ void run_repeat(const type_desc& t, const config& cfg, results& out) {
         }
         // product: Q <- G_k ... G_1 on an n x n Q, fresh operators each step.
         {
-            seeded r(t.name + "/product");
+            seeded r(t.seed_name() + "/product");
             const int n = cfg.product_n;
             std::vector<int> ks;
             for (int k = 1; k <= cfg.product_kmax; k *= 2) ks.push_back(k);
@@ -452,5 +465,12 @@ void run_all(const type_desc& t, const config& cfg, results& out) {
 void run_ieee(const config&, results&);
 void run_posit(const config&, results&);
 void run_fixpnt(const config&, results&);
+void run_cfloat_narrow(const config&, results&);   // 8 to 32 bits
+void run_cfloat_mid(const config&, results&);      // 40 to 64 bits
+void run_cfloat_wide(const config&, results&);     // 80, 128, 256 bits
+void run_lns(const config&, results&);
+void run_takum(const config&, results&);
+void run_dd(const config&, results&);
+void run_qd(const config&, results&);
 
 } // namespace study

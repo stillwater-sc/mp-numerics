@@ -16,7 +16,9 @@
 #include <sw/mp_numerics/reflectors.hpp>
 #include <sw/mp_numerics/rotations.hpp>
 
+#include <universal/number/cfloat/cfloat.hpp>
 #include <universal/number/posit/posit.hpp>
+#include <universal/number/qd/qd.hpp>
 
 namespace {
 
@@ -77,6 +79,37 @@ operator_error textbook_reflector_error(const T& a, const T& b, int k) {
     T y1 = b;
     if (h.vtv > T(0)) y1 = b - ((T(2) * (h.v(0) * a + h.v(1) * b)) / h.vtv) * h.v(1);
     return measure_textbook_reflector(a, b, k, h.v(0), h.v(1), h.vtv, h.alpha, y1, k);
+}
+
+bool same_error(const operator_error& x, const operator_error& y) {
+    return x.finite == y.finite && x.identity == y.identity && x.orth == y.orth && x.r_err == y.r_err &&
+           x.annih == y.annih && x.annih_fp == y.annih_fp;
+}
+
+/// Every operator gives the same measures in H as in IEEE type F, at every
+/// scale from F's subnormals to its overflow: cfloat rounds as IEEE 754 does,
+/// so its results in the study can be read as the hardware type's would be.
+template <typename F, typename H>
+bool matches_ieee(std::mt19937_64& g) {
+    using L = std::numeric_limits<F>;
+    bool same = true;
+    for (int k = L::min_exponent - L::digits; k < L::max_exponent; k += 3)
+        for (int i = 0; i < 4; ++i) {
+            const double th = double(g() >> 11) * 0x1.0p-53 * 6.283185307179586;
+            const F fa = scale_pow2(F(std::cos(th)), k), fb = scale_pow2(F(std::sin(th)), k);
+            if (fa == F(0) && fb == F(0)) continue;
+            const H ha(fa), hb(fb);
+            same = same && same_error(rotation_error(givens_unscaled(fa, fb), fa, fb, k),
+                                      rotation_error(givens_unscaled(ha, hb), ha, hb, k))
+                        && same_error(rotation_error(givens_safe_scaled(fa, fb), fa, fb, k),
+                                      rotation_error(givens_safe_scaled(ha, hb), ha, hb, k))
+                        && same_error(rotation_error(givens_pow2_scaled(fa, fb), fa, fb, k),
+                                      rotation_error(givens_pow2_scaled(ha, hb), ha, hb, k))
+                        && same_error(reflector_error(fa, fb, k), reflector_error(ha, hb, k))
+                        && same_error(lapack_reflector_error(fa, fb, k), lapack_reflector_error(ha, hb, k))
+                        && same_error(textbook_reflector_error(fa, fb, k), textbook_reflector_error(ha, hb, k));
+        }
+    return same;
 }
 
 } // namespace
@@ -151,6 +184,30 @@ int main() {
         check(u.finite && u.r_err > 0.5, "posit<16,2> 2^30: unscaled r saturates (gross)");
         const auto m = rotation_error(givens_max_scaled(a, b), a, b, 30);
         check(m.finite && m.r_err <= std::ldexp(1.0, -5), "posit<16,2> 2^30: max-scaled r to the posit's 4 bits");
+    }
+    {   // cfloat in IEEE layout reproduces float and double through every operator.
+        using sw::universal::cfloat;
+        check((matches_ieee<float, cfloat<32, 8, std::uint32_t, true, false, false>>(g)),
+              "cfloat<32,8> gives float's measures, subnormals to overflow");
+        check((matches_ieee<double, cfloat<64, 11, std::uint32_t, true, false, false>>(g)),
+              "cfloat<64,11> gives double's measures, subnormals to overflow");
+    }
+    {   // A value the measures cannot read counts as gross. In a saturating
+        // cfloat<80,15> at ||x|| = 2^9246, the textbook reflector's v^T v
+        // (2^18492) clamps to max() ~ 2^16384; read against 2^(2 * 9246) it
+        // is 2^-2108, below double's range.
+        using S80 = sw::universal::cfloat<80, 15, std::uint32_t, true, false, true>;
+        const S80 a = scale_pow2(S80(0.8), 9246), b = scale_pow2(S80(0.6), 9246);
+        const auto t = textbook_reflector_error(a, b, 9246);
+        check(t.finite && t.orth == HUGE_VAL && t.annih == HUGE_VAL,
+              "cfloat<80,15,sat> 2^9246: clamped v^T v makes the textbook reflector gross");
+        // qd can hold an exact residual near 2^-1000: it reads out, and the
+        // reflector for x = (1, 2^-205) is accurate.
+        using sw::universal::qd;
+        const qd qa(1.0), qb(std::ldexp(1.3, -205));
+        const auto q = lapack_reflector_error(qa, qb, 0);
+        const double eq = double(std::numeric_limits<qd>::epsilon());
+        check(q.finite && q.orth <= 8 * eq && q.annih_fp <= 8 * eq, "qd (1, 1.3*2^-205): dlarfg form reads out, accurate");
     }
     {   // The findings of mp-numerics#13, pinned.
         using P32 = sw::universal::posit<32, 2>;
