@@ -171,10 +171,14 @@ int main() {
         const auto s = rotation_error(givens_safe_scaled(a, b), a, b, k);
         check(s.finite && s.r_err <= 2 * eps, "double 3e-200: safe-scaled is accurate");
     }
-    {   // A tail below half an ulp of a: MTL5's householder returns the identity.
+    {   // A tail below half an ulp of a. Since MTL5 5.22.0 (mtl5#672) householder
+        // reflects it, as dlarfg does: with dlarfg's sign v1 = b / (2a) is small,
+        // so there is nothing to overflow. Before, Parlett's v1 ~ -2a/b was huge
+        // and householder returned the identity instead.
         const double a = 1.0, b = 1e-17;
         const auto h = reflector_error(a, b, 0);
-        check(h.identity && std::abs(h.annih - b) <= b * eps, "householder: a negligible tail gives the identity");
+        check(!h.identity && h.finite && h.orth <= 4 * eps && h.annih <= 4 * eps,
+              "householder: a negligible tail is reflected, accurately");
     }
     {   // posit<16,2> saturates instead of overflowing: at 2^30, a*a = 2^60 goes
         // to maxpos = 2^56 and the unscaled r is wrong, but finite. The measure
@@ -217,14 +221,16 @@ int main() {
         const double e32 = double(std::numeric_limits<P32>::epsilon());
         const double e64 = double(std::numeric_limits<P64>::epsilon());
 
-        // MTL5's reflector, with Parlett's sign, puts v1 ~ -2 x0 / x1 where a
-        // posit has few bits; dlarfg's sign keeps |v1| <= 1. x0 = 1, so
-        // MTL5's scaling (a division by 1) rounds nothing: the sign is the cause.
+        // MTL5 5.21.0's reflector, with Parlett's sign, put v1 ~ -2 x0 / x1
+        // where a posit has few bits, and measured 143 eps here; dlarfg's sign
+        // keeps |v1| <= 1. MTL5 5.22.0 adopted dlarfg's sign (mtl5#672), so
+        // its reflector now stays as accurate as the dlarfg form.
         const P32 a(1.0), b(std::ldexp(1.3, -14));
         const auto m = reflector_error(a, b, 0), l = lapack_reflector_error(a, b, 0);
         std::cout << "      posit<32,2> (1, 1.3*2^-14): MTL5 reflector " << m.orth / e32
                   << " eps, dlarfg form " << l.orth / e32 << " eps\n";
-        check(!m.identity && m.orth > 50 * e32, "posit<32,2> small tail: MTL5's reflector loses accuracy");
+        check(m.finite && !m.identity && m.orth <= 8 * e32,
+              "posit<32,2> small tail: MTL5's reflector stays within 8 eps");
         check(l.orth <= 8 * e32, "posit<32,2> small tail: dlarfg's form stays within 8 eps");
         const auto t = textbook_reflector_error(a, b, 0);
         check(t.orth <= 8 * e32, "posit<32,2> small tail: the textbook reflector stays within 8 eps");

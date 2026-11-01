@@ -63,8 +63,12 @@ else()
 		$<BUILD_INTERFACE:${universal_SOURCE_DIR}/include/sw>)
 endif()
 
-# MTL5 linear algebra library (header-only)
-find_package(MTL5 CONFIG QUIET)
+# MTL5 linear algebra library (header-only). 5.22 is the first release whose
+# householder() takes dlarfg's sign and whose Givens rotations scale by an exact
+# power of two (mtl5#673, mtl5#675); tests/linalg/test_rotations.cpp checks that
+# behaviour. MTL5's version file is SameMajorVersion, so an installed 5.21 is
+# rejected here and main is fetched instead.
+find_package(MTL5 5.22 CONFIG QUIET)
 if(MTL5_FOUND)
 	target_link_libraries(${PROJECT_NAME} INTERFACE MTL5::mtl5)
 	message(STATUS "Found MTL5 via find_package")
