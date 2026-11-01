@@ -229,7 +229,8 @@ int main() {
         const auto m = reflector_error(a, b, 0), l = lapack_reflector_error(a, b, 0);
         std::cout << "      posit<32,2> (1, 1.3*2^-14): MTL5 reflector " << m.orth / e32
                   << " eps, dlarfg form " << l.orth / e32 << " eps\n";
-        check(!m.identity && m.orth <= 8 * e32, "posit<32,2> small tail: MTL5's reflector stays within 8 eps");
+        check(m.finite && !m.identity && m.orth <= 8 * e32,
+              "posit<32,2> small tail: MTL5's reflector stays within 8 eps");
         check(l.orth <= 8 * e32, "posit<32,2> small tail: dlarfg's form stays within 8 eps");
         const auto t = textbook_reflector_error(a, b, 0);
         check(t.orth <= 8 * e32, "posit<32,2> small tail: the textbook reflector stays within 8 eps");

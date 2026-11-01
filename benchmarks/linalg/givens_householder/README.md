@@ -70,9 +70,10 @@ eps. And dd and qd carry a bit or three more than their `epsilon()` (2^-105 and
 | `householder_lapack_pow2` | `dlarfg`'s sign (onto −sign(x₀)‖x‖e₁) and v(0) = 1, on x scaled by an exact 2^-e |
 
 `givens_mtl5` and `householder_mtl5` describe MTL5 5.21.0, which the committed
-results measured. MTL5 5.22.0 adopted the two remedies below, so a rerun against
-it measures `givens_mtl5` as the power-of-two scaled rotation and
-`householder_mtl5` as the `dlarfg`-signed, power-of-two scaled reflector.
+results measured. MTL5 main has since adopted the two remedies below, and they
+ship in MTL5 5.22.0. A rerun against either measures `givens_mtl5` as the
+power-of-two scaled rotation and `householder_mtl5` as the `dlarfg`-signed,
+power-of-two scaled reflector.
 
 ### The inputs
 
@@ -222,7 +223,7 @@ the bottom edge of the unscaled band, where the squares are subnormal:
 
 ### What this suggested for MTL5
 
-Both were filed as MTL5 issues and adopted in MTL5 5.22.0:
+Both were filed as MTL5 issues and adopted on MTL5 main, to ship in 5.22.0:
 
 - `apply_givens_rotation`, and the same formula in MINRES and the symmetric
   QR iteration, could scale by an exact power of two before squaring, as
