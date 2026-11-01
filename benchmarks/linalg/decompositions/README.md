@@ -233,15 +233,19 @@ not by the method:
 
 ### Householder against Givens
 
-Neither method dominates. In most types their least-squares reach is within a
-decade of each other. The exceptions:
+Neither method dominates. In most types their least-squares reach (randsvd)
+is within a decade of each other. These differ by two decades or more:
 
 - **float:** Givens reaches 10⁵, against Householder's 10⁷, at both sizes.
-- **posit<16,2>:** Givens reaches one to two decades further.
+- **posit<16,2> at 16 × 8:** Givens reaches 10³ and Householder 10. At
+  32 × 16 the gap is one decade.
+- **posit<16,1> at 16 × 8:** the reverse: Householder reaches 10³ and Givens
+  10.
 - **fixpnt<32,16> at 32 × 16:** Householder reaches 10³ and Givens 10.
 
 With eight samples per point, one bad sample decides a type's reach, so
-differences of a decade are within the noise. Part 5 tests Givens where it
+differences of a decade are within the noise. The two 16-bit posits pointing
+opposite ways at the same size suggests the same for some of these. Part 5 tests Givens where it
 should win: banded and sparse inputs, whose zeros it keeps.
 
 ### Rounding into the type changes the problem
