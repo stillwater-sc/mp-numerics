@@ -69,6 +69,11 @@ eps. And dd and qd carry a bit or three more than their `epsilon()` (2^-105 and
 | `householder_textbook` | `mtl::householder(x, tag::textbook_reflector)`: v = x − αe₁ with α = −sign(x₀)‖x‖, unscaled, unnormalized |
 | `householder_lapack_pow2` | `dlarfg`'s sign (onto −sign(x₀)‖x‖e₁) and v(0) = 1, on x scaled by an exact 2^-e |
 
+`givens_mtl5` and `householder_mtl5` describe MTL5 5.21.0, which the committed
+results measured. MTL5 5.22.0 adopted the two remedies below, so a rerun against
+it measures `givens_mtl5` as the power-of-two scaled rotation and
+`householder_mtl5` as the `dlarfg`-signed, power-of-two scaled reflector.
+
 ### The inputs
 
 | input | x | per row |
@@ -215,19 +220,22 @@ within 2.2 eps, and MTL5's reflector stays within 9 eps. The one excess is at
 the bottom edge of the unscaled band, where the squares are subnormal:
 1.8×10¹⁹ eps (2^-48) in cfloat<128,15>.
 
-### What this suggests for MTL5
+### What this suggested for MTL5
 
-These are candidates, not changes made here, now filed as MTL5 issues:
+Both were filed as MTL5 issues and adopted in MTL5 5.22.0:
 
 - `apply_givens_rotation`, and the same formula in MINRES and the symmetric
   QR iteration, could scale by an exact power of two before squaring, as
   `givens_pow2_scaled` does. In IEEE that costs two exponent extractions and
   removes the half-range limit; in a posit, takum, dd, lns or fixed point it
   also keeps the accuracy. It was the only rotation clean and accurate in all
-  65 types ([mtl5#671](https://github.com/stillwater-sc/mtl5/issues/671)).
+  65 types ([mtl5#671](https://github.com/stillwater-sc/mtl5/issues/671),
+  done in [mtl5#673](https://github.com/stillwater-sc/mtl5/pull/673)).
 - `householder()` could reflect onto −sign(x₀)‖x‖e₁, as `dlarfg` does. That
-  changes the sign of R's diagonal, which MTL5 currently keeps positive
-  ([mtl5#672](https://github.com/stillwater-sc/mtl5/issues/672)).
+  changes the sign of R's diagonal, which MTL5 5.21.0 kept positive
+  ([mtl5#672](https://github.com/stillwater-sc/mtl5/issues/672), done in
+  [mtl5#675](https://github.com/stillwater-sc/mtl5/pull/675), which also scales
+  by an exact power of two and adds `qr_normalize_signs` for the old sign).
 - Thresholds taken from `std::numeric_limits` describe where a type overflows,
   not where it is precise. Tapered types, dd and qd need the second.
 
