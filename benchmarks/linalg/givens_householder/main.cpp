@@ -20,99 +20,20 @@
 
 #include "study.hpp"
 
-#ifndef MPN_GIT_COMMIT
-#define MPN_GIT_COMMIT "unknown"
-#endif
-#ifndef MTL5_GIT_COMMIT
-#define MTL5_GIT_COMMIT "unknown"
-#endif
-#ifndef UNIVERSAL_GIT_COMMIT
-#define UNIVERSAL_GIT_COMMIT "unknown"
-#endif
-#ifndef MPN_BUILD_TYPE
-#define MPN_BUILD_TYPE "unknown"
-#endif
-#ifndef MPN_CXX_FLAGS
-#define MPN_CXX_FLAGS ""
-#endif
+#include "common/report.hpp"
 
 namespace {
 
 using namespace study;
 
-std::string num(double x) {
-    if (std::isnan(x)) return "nan";
-    if (std::isinf(x)) return x > 0 ? "inf" : "-inf";
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%.6g", x);
-    return buf;
-}
-
-double quantile(std::vector<double> v, double q) {
-    if (v.empty()) return std::nan("");
-    const std::size_t i = std::min(v.size() - 1, std::size_t(q * double(v.size() - 1) + 0.5));
-    std::nth_element(v.begin(), v.begin() + std::ptrdiff_t(i), v.end());
-    return v[i];
-}
-
-double maximum(const std::vector<double>& v) {
-    return v.empty() ? std::nan("") : *std::max_element(v.begin(), v.end());
-}
-
-std::string compiler() {
-#if defined(__clang__)
-    return std::string("Clang ") + __clang_version__;
-#elif defined(__GNUC__)
-    return std::string("GCC ") + __VERSION__;
-#elif defined(_MSC_VER)
-    return "MSVC " + std::to_string(_MSC_VER);
-#else
-    return "unknown";
-#endif
-}
-
-std::string arch() {
-#if defined(__x86_64__) || defined(_M_X64)
-    return "x86_64";
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    return "aarch64";
-#else
-    return "unknown";
-#endif
-}
-
-std::string os() {
-#if defined(__linux__)
-    return "Linux";
-#elif defined(__APPLE__)
-    return "macOS";
-#elif defined(_WIN32)
-    return "Windows";
-#else
-    return "unknown";
-#endif
-}
+using report::maximum;
+using report::num;
+using report::quantile;
 
 void write_sysinfo(const std::filesystem::path& csv, const config& cfg, bool quick) {
     std::ofstream f(csv.string() + ".sysinfo");
-    const std::time_t now = std::time(nullptr);
-    char date[32];
-    std::strftime(date, sizeof date, "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
-    f << "label=" << csv.stem().string() << '\n'
-      << "study=mp-numerics#13 givens_householder\n"
-      << "generated_utc=" << date << '\n'
-      << "cpu_arch=" << arch() << '\n'
-      << "cpu_logical_cores=" << std::thread::hardware_concurrency() << '\n'
-      << "os_name=" << os() << '\n'
-      << "compiler=" << compiler() << '\n'
-      << "cpp_standard=" << __cplusplus << '\n'
-      << "build_type=" << MPN_BUILD_TYPE << '\n'
-      << "cxx_flags=" << MPN_CXX_FLAGS << '\n'
-      << "git_commit=" << MPN_GIT_COMMIT << '\n'
-      << "mtl5_commit=" << MTL5_GIT_COMMIT << '\n'
-      << "universal_commit=" << UNIVERSAL_GIT_COMMIT << '\n'
-      << "long_double_digits=" << std::numeric_limits<long double>::digits << '\n'
-      << "quick=" << (quick ? 1 : 0) << '\n'
+    report::write_provenance(f, csv.stem().string(), "mp-numerics#13 givens_householder");
+    f << "quick=" << (quick ? 1 : 0) << '\n'
       << "base_samples=" << cfg.base_samples << '\n'
       << "scale_points=" << cfg.scale_points << '\n'
       << "scale_samples=" << cfg.scale_samples << '\n'

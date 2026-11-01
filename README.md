@@ -49,14 +49,16 @@ include/sw/mp_numerics/
   exact.hpp                      # exact read-out of binary number types (ereal expansions)
   rotations.hpp reflectors.hpp   # Givens rotations and Householder reflectors, four scalings
   operator_metrics.hpp           # exact error measures of a rotation or reflector
+  givens_qr.hpp householder_qr.hpp  # Givens QR; Householder QR storing beta as dgeqr2 does
 applications/
   integration/simpson_precision/ # quadrature error across number precisions
 benchmarks/
   integration/                   # accuracy-per-unit-time across number systems
   linalg/givens_householder/     # one rotation or reflector at a time, per type (#13)
+  linalg/decompositions/         # QR and least squares across number types (#14)
 tests/
   integration/                   # composite Simpson smoke test across types
-  linalg/                        # exact read-out; rotation and reflector findings
+  linalg/                        # exact read-out; rotations, reflectors, QR
   roots/ interpolation/ optimization/ approximation/   # (no tests yet -- roadmap)
 docs/roadmap.md                  # milestones and migration plan
 ```
