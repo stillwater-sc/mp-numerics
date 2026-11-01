@@ -344,7 +344,7 @@ inline const char* name(ls_method l) {
 template <typename T>
 struct factors {
     matrix<T> Q, R;
-    bool skipped = false;   // a reflector was left out (tau = 0) over a nonzero column
+    bool skipped = false;   // some reflector was the identity (tau = 0), its column left as it was
 };
 
 template <typename T>
@@ -359,11 +359,11 @@ factors<T> factor(qr_method method, const matrix<T>& A) {
     if (method == qr_method::householder_mtl5) mtl::qr_factor(F, tau);
     else if (method == qr_method::householder_beta) sw::mp_numerics::qr_factor_stored_beta(F, tau);
     else mtl::qr_factor(F, tau, mtl::tag::textbook_reflector{});
+    // Read from tau, not from the column: when tau is 0, qr_factor still
+    // stores v below the diagonal (zeros), so the column no longer shows it.
+    // The last column of a square A has no tail, and its tau is always 0.
     bool skipped = false;
-    for (std::size_t j = 0; j < std::min(m - 1, n); ++j) {
-        if (tau(j) != T(0)) continue;
-        for (std::size_t i = j + 1; i < m; ++i) skipped = skipped || F(i, j) != T(0);
-    }
+    for (std::size_t j = 0; j < std::min(m - 1, n); ++j) skipped = skipped || tau(j) == T(0);
     return {mtl::qr_extract_Q(F, tau), mtl::qr_extract_R(F), skipped};
 }
 
