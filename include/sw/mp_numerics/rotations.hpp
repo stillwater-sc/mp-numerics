@@ -4,15 +4,17 @@
 // A Givens rotation G = [c s; -s c] takes (a, b) to (r, 0). How r is formed
 // decides where it fails:
 //
-//   givens_unscaled    r = sqrt(a*a + b*b). This is MTL5's
-//                      apply_givens_rotation (operation/givens.hpp), used by
-//                      GMRES. a*a overflows once |a| passes sqrt(max) and
+//   givens_unscaled    r = sqrt(a*a + b*b), as MTL5's apply_givens_rotation
+//                      (operation/givens.hpp, used by GMRES) formed it up to
+//                      5.21.0. a*a overflows once |a| passes sqrt(max) and
 //                      underflows below sqrt(min), long before r would.
 //   givens_max_scaled  divides by m = max(|a|, |b|) first, as LAPACK's lapy2
-//                      and MTL5's householder() do. Costs two divisions.
+//                      and MTL5's householder() up to 5.21.0 do. Costs two
+//                      divisions.
 //   givens_pow2_scaled scales by an exact power of two so the squares land
 //                      near 1; not a LAPACK form, but the remedy for tapered
-//                      types that mp-numerics#13 tests.
+//                      types that mp-numerics#13 tests. MTL5 adopted it in
+//                      5.22.0 as mtl::math::givens_rotation (mtl5#673).
 //   givens_safe_scaled E. Anderson, "Algorithm 978: Safe Scaling in the Level 1
 //                      BLAS", ACM TOMS 44(1), 2017; Reference-LAPACK's dlartg.f90
 //                      since 3.10. Scales only when an entry lies outside
@@ -37,7 +39,8 @@ struct plane_rotation {
     T c, s, r;
 };
 
-/// r = sqrt(a*a + b*b), c = a/r, s = b/r, as MTL5's givens.hpp computes it.
+/// r = sqrt(a*a + b*b), c = a/r, s = b/r, as MTL5's givens.hpp computed it up
+/// to 5.21.0.
 template <typename T>
 plane_rotation<T> givens_unscaled(const T& a, const T& b) {
     using std::sqrt;

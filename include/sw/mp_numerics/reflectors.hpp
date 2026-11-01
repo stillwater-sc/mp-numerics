@@ -2,13 +2,14 @@
 // mp-numerics -- a Householder reflector in LAPACK dlarfg's form, scaled by an
 // exact power of two, for any number type.
 //
-// MTL5's householder() (operation/householder.hpp) reflects x onto +||x|| e1
-// when x0 > 0 (Parlett's choice of sign) and normalizes v so that v(0) = 1.
-// With that sign v0 = -sigma / (x0 + ||x||) is small when the tail of x is
-// small, and v1 = x1 / v0 ~ -2 x0 / x1 is large: in a tapered type (posit,
-// takum) that is where the type has the fewest bits. dlarfg reflects onto
-// beta e1 with beta = -sign(x0) ||x||, so |v0| = |x0| + ||x|| >= ||x|| and
-// every entry of the normalized v is at most 1 in magnitude.
+// MTL5's householder() (operation/householder.hpp) up to 5.21.0 reflected x
+// onto +||x|| e1 when x0 > 0 (Parlett's choice of sign) and normalized v so
+// that v(0) = 1. With that sign v0 = -sigma / (x0 + ||x||) is small when the
+// tail of x is small, and v1 = x1 / v0 ~ -2 x0 / x1 is large: in a tapered
+// type (posit, takum) that is where the type has the fewest bits. dlarfg
+// reflects onto beta e1 with beta = -sign(x0) ||x||, so |v0| = |x0| + ||x||
+// >= ||x|| and every entry of the normalized v is at most 1 in magnitude.
+// MTL5 5.22.0 adopted dlarfg's sign and the power-of-two scaling (mtl5#675).
 //
 // householder_lapack_pow2 is that form, with x first scaled by 2^-e,
 // 2^e <= max |x_i|. The scaling is exact in a floating-point type and puts
