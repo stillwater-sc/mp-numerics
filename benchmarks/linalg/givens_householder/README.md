@@ -25,7 +25,9 @@ picks families (all by default). The full run takes about four minutes against
 MTL5 5.21.0, most of it in the wide cfloats. Against 5.22.0 it takes over two
 hours: `givens_mtl5` and `householder_mtl5` then go through MTL5's
 `pow2_scaling`, whose exponent search costs one multiplication per binade
-([mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680)). Each CSV has a `.sysinfo` sidecar recording the
+([mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680)). MTL5 main fixes
+that ([mtl5#681](https://github.com/stillwater-sc/mtl5/pull/681)), and the run
+takes about four minutes again. Each CSV has a `.sysinfo` sidecar recording the
 platform, compiler, sample counts and the commits of mp-numerics, MTL5 and
 Universal. The commits are read when CMake configures, so reconfigure before a
 run whose results are kept; `+dirty` marks uncommitted changes. The inputs come
@@ -77,7 +79,8 @@ results measured. MTL5 5.22.0 adopted the two remedies below, so a rerun
 against it measures `givens_mtl5` as the power-of-two scaled rotation and
 `householder_mtl5` as the `dlarfg`-signed, power-of-two scaled reflector. How
 closely they reproduce `givens_pow2_scaled` and `householder_lapack_pow2` is in
-[Rerun against MTL5 5.22.0](#rerun-against-mtl5-5220).
+[Rerun against MTL5 5.22.0](#rerun-against-mtl5-5220), and after the fix for
+the failures found there, in [Rerun against MTL5 main](#rerun-against-mtl5-main).
 
 ### The inputs
 
@@ -263,15 +266,16 @@ differently because MTL5 forms x₀² + Σᵢ₌₁ xᵢ², adding x₀² last, 
 `householder_lapack_pow2` sums from x₀.
 
 The exception is the exponents nearest each end of the range in the es = 2
-posits and takum<8>. There MTL5's adopted forms fail, and the remedies don't:
+posits and takum<8>. There MTL5's adopted forms fail, and the remedies don't. The worst
+‖GᵀG − I‖ over the scale sweep:
 
-| type | `givens_mtl5` worst ‖GᵀG − I‖ | `givens_pow2_scaled` | `householder_mtl5` | `householder_lapack_pow2` |
+| type | `givens_mtl5` | `givens_pow2_scaled` | `householder_mtl5` | `householder_lapack_pow2` |
 |---|---|---|---|---|
-| posit<8,2> | 1.05×10⁶ eps (192 gross) | 1.0 eps | 8 eps | 3.2 eps |
-| posit<16,2> | 1.2×10¹⁸ eps (384 gross) | 0.98 eps | 2.1×10³ eps (331 gross) | 2.3 eps |
-| posit<32,2> | 1.4×10⁴² eps (384 gross) | 0.99 eps | 1.3×10⁸ eps (333 gross) | 2.6 eps |
-| posit<64,2> | 2.0×10⁹⁰ eps (384 gross) | 1.0 eps | 5.8×10¹⁷ eps (326 gross) | 4.0 eps |
-| takum<8> | 7.1×10⁷² eps (1,376 gross) | 1.0 eps | 8 eps | 2.4 eps |
+| posit<8,2> | 1.05×10⁶ eps (192 gross) | 1.32 eps | 8 eps | 3.22 eps |
+| posit<16,2> | 1.2×10¹⁸ eps (384 gross) | 1.80 eps | 2.1×10³ eps (331 gross) | 3.83 eps |
+| posit<32,2> | 1.4×10⁴² eps (384 gross) | 1.98 eps | 1.3×10⁸ eps (333 gross) | 4.76 eps |
+| posit<64,2> | 2.0×10⁹⁰ eps (384 gross) | 2.01 eps | 5.8×10¹⁷ eps (326 gross) | 4.28 eps |
+| takum<8> | 7.1×10⁷² eps (1,376 gross) | 1.12 eps | 8 eps | 3.28 eps |
 
 The scaling itself is exact. The fault is in how MTL5 finds the exponent to
 scale by. `pow2_scaling<T>::exponent(m)` halves m toward [1, 2) and stops when
@@ -287,7 +291,8 @@ the exponent through double after exact power-of-two steps, and gets all of
 these right. The same search costs one multiplication per binade: 88 ms per
 call for cfloat<256,19> near 2²⁰⁰⁰⁰⁰, against 0.014 ms here. That is the two
 hours. Both are filed as
-[mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680).
+[mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680), and fixed on MTL5
+main; see [Rerun against MTL5 main](#rerun-against-mtl5-main).
 
 The rerun also moved the remedies' own rows in dd and qd: 5 base, 743 dd and
 43 qd scale, and 140 tail rows. The two runs used different Universal commits:
@@ -305,6 +310,55 @@ These address [universal#1881](https://github.com/stillwater-sc/universal/issues
 dd and qd findings above describe Universal at 2d5c785.
 
 The committed results stay those of 5.21.0, which the findings above describe.
+
+### Rerun against MTL5 main
+
+[mtl5#681](https://github.com/stillwater-sc/mtl5/pull/681) fixed
+[mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680) on MTL5 main.
+`pow2_scaling`'s fallback now reads the exponent through double, as
+`binary_exponent` does here, and steps by squared powers of two where a type's
+range passes double's. The study was rerun against MTL5 main at 8b31047, with
+mp-numerics 92e26d0 and the same Universal as the 5.22.0 rerun, 85172d9, so
+MTL5 is the only change between the two. The full run took 235 s, against
+7,974 s for 5.22.0.
+
+Identical rows, counted as above:
+
+| pair | 5.22.0 (base, scale, tail, repeat) | main |
+|---|---|---|
+| `givens_mtl5` vs `givens_pow2_scaled` | 57/57, 6947/7177, 3139/3139, 1368/1368 | 57/57, 7152/7177, 3139/3139, 1368/1368 |
+| `householder_mtl5` vs `householder_lapack_pow2` | 44/57, 6923/7177, 3057/3139, 905/1368 | 44/57, 7131/7177, 3057/3139, 905/1368 |
+
+The failures are gone. The worst ‖GᵀG − I‖ over the scale sweep, now with no
+gross samples in any of these types:
+
+| type | `givens_mtl5` | `givens_pow2_scaled` | `householder_mtl5` | `householder_lapack_pow2` |
+|---|---|---|---|---|
+| posit<8,2> | 1.32 eps | 1.32 eps | 3.22 eps | 3.22 eps |
+| posit<16,2> | 1.80 eps | 1.80 eps | 3.83 eps | 3.83 eps |
+| posit<32,2> | 1.98 eps | 1.98 eps | 4.76 eps | 4.76 eps |
+| posit<64,2> | 2.01 eps | 2.01 eps | 4.28 eps | 4.28 eps |
+| takum<8> | 1.12 eps | 1.12 eps | 3.28 eps | 3.28 eps |
+
+Of the rows that still differ, all but 20 are unchanged from the 5.22.0 rerun,
+the differences described there. The 20 new ones are takums:
+
+- **takum<8>:** 11 rotation rows, from 2⁻²³⁹ to 2⁻²³³ and four from 2²³³ to
+  2²³⁹, and 7 reflector rows, from 2⁻²³⁹ to 2⁻²³³. They differ at the rounding
+  level, in both directions. At the low end the rotation's ‖GᵀG − I‖ is 1 eps
+  against 0.44 eps, and the reflector's annihilation error 0.19 eps against
+  0.92 eps.
+- **takum<32>, takum<64>:** one rotation row each, at 2⁻²⁵⁴, where the error
+  in r is 86 to 88 eps against 58 to 62 eps.
+
+Both scalings multiply once by 2^k where 2^k is a value of the type. From
+2^±233 to 2^±237 it is not a value of takum<8>, and rounds to 2^±239:
+`scale_pow2` here multiplies by that rounded 2^k, where MTL5 steps x by exact
+powers of two instead, so the two round differently.
+
+The `.sysinfo` sidecars of this run record `universal_commit=unknown`, because
+Universal was used as an exported tree rather than a clone. The CSVs are not
+committed.
 
 ### Universal behaviour met along the way
 
