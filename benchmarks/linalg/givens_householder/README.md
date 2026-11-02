@@ -21,8 +21,13 @@ python3 benchmarks/linalg/givens_householder/plot.py results/ figures/
 ```
 
 `--quick` runs a small sample, and `--family ieee,posit,fixpnt,cfloat,lns,takum,dd,qd`
-picks families (all by default). The full run takes about four minutes, most
-of it in the wide cfloats. Each CSV has a `.sysinfo` sidecar recording the
+picks families (all by default). The full run takes about four minutes against
+MTL5 5.21.0, most of it in the wide cfloats. Against 5.22.0 it takes over two
+hours: `givens_mtl5` and `householder_mtl5` then go through MTL5's
+`pow2_scaling`, whose exponent search costs one multiplication per binade
+([mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680)). MTL5 main fixes
+that ([mtl5#681](https://github.com/stillwater-sc/mtl5/pull/681)), and the run
+takes about four minutes again. Each CSV has a `.sysinfo` sidecar recording the
 platform, compiler, sample counts and the commits of mp-numerics, MTL5 and
 Universal. The commits are read when CMake configures, so reconfigure before a
 run whose results are kept; `+dirty` marks uncommitted changes. The inputs come
@@ -30,6 +35,27 @@ from `std::mt19937_64` and `std::cos`/`std::sin`, so another platform's libm can
 move an input by an ulp and change the last digits. The committed results are
 byte-identical between GCC 15 and Clang 21 on x86-64. `plot.py` needs
 matplotlib; `summarize.py` needs only the standard library.
+
+A default configure measures whatever MTL5 and Universal it gets: an installed
+MTL5 of at least 5.22 and an installed Universal through `find_package`, or
+otherwise both fetched from `main`. To reproduce a recorded run, check out the
+three commits in its `.sysinfo` and point CMake at the checkouts:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_DISABLE_FIND_PACKAGE_MTL5=ON -DCMAKE_DISABLE_FIND_PACKAGE_universal=ON \
+  -DFETCHCONTENT_SOURCE_DIR_MTL5=/path/to/mtl5 \
+  -DFETCHCONTENT_SOURCE_DIR_UNIVERSAL=/path/to/universal
+```
+
+The two `DISABLE` flags keep an installed copy from taking precedence over the
+checkouts. The runs this README reports:
+
+| run | mp-numerics | MTL5 | Universal |
+|---|---|---|---|
+| committed results (5.21.0) | d29d67d | d442189: v5.21.0's headers | 2d5c785 |
+| [rerun against 5.22.0](#rerun-against-mtl5-5220) | 7fedb19 | cf2f8a5: v5.22.0's headers | 85172d9 |
+| [rerun against main](#rerun-against-mtl5-main) | 92e26d0 | 8b31047 | 85172d9 |
 
 ## What is measured
 
@@ -70,10 +96,12 @@ eps. And dd and qd carry a bit or three more than their `epsilon()` (2^-105 and
 | `householder_lapack_pow2` | `dlarfg`'s sign (onto −sign(x₀)‖x‖e₁) and v(0) = 1, on x scaled by an exact 2^-e |
 
 `givens_mtl5` and `householder_mtl5` describe MTL5 5.21.0, which the committed
-results measured. MTL5 main has since adopted the two remedies below, and they
-ship in MTL5 5.22.0. A rerun against either measures `givens_mtl5` as the
-power-of-two scaled rotation and `householder_mtl5` as the `dlarfg`-signed,
-power-of-two scaled reflector.
+results measured. MTL5 5.22.0 adopted the two remedies below, so a rerun
+against it measures `givens_mtl5` as the power-of-two scaled rotation and
+`householder_mtl5` as the `dlarfg`-signed, power-of-two scaled reflector. How
+closely they reproduce `givens_pow2_scaled` and `householder_lapack_pow2` is in
+[Rerun against MTL5 5.22.0](#rerun-against-mtl5-5220), and after the fix for
+the failures found there, in [Rerun against MTL5 main](#rerun-against-mtl5-main).
 
 ### The inputs
 
@@ -239,6 +267,119 @@ Both were filed as MTL5 issues and adopted on MTL5 main, to ship in 5.22.0:
   by an exact power of two and adds `qr_normalize_signs` for the old sign).
 - Thresholds taken from `std::numeric_limits` describe where a type overflows,
   not where it is precise. Tapered types, dd and qd need the second.
+
+### Rerun against MTL5 5.22.0
+
+The study was rerun against MTL5 5.22.0 (cf2f8a5, mp-numerics 7fedb19,
+Universal 85172d9). With the remedies adopted, `givens_mtl5` should reproduce
+`givens_pow2_scaled` and `householder_mtl5` should reproduce
+`householder_lapack_pow2`. Comparing the two rows of each pair, every column of
+every input class:
+
+| pair | identical rows (base, scale, tail, repeat) |
+|---|---|
+| `givens_mtl5` vs `givens_pow2_scaled` | 57/57, 6947/7177, 3139/3139, 1368/1368 |
+| `householder_mtl5` vs `householder_lapack_pow2` | 44/57, 6923/7177, 3057/3139, 905/1368 |
+
+Outside the table below, the rows that differ do so at the rounding level:
+each pair's worst errors are within 20% of each other. The reflector rounds
+differently because MTL5 forms x₀² + Σᵢ₌₁ xᵢ², adding x₀² last, where
+`householder_lapack_pow2` sums from x₀.
+
+The exception is the exponents nearest each end of the range in the es = 2
+posits and takum<8>. There MTL5's adopted forms fail, and the remedies don't. The worst
+‖GᵀG − I‖ over the scale sweep:
+
+| type | `givens_mtl5` | `givens_pow2_scaled` | `householder_mtl5` | `householder_lapack_pow2` |
+|---|---|---|---|---|
+| posit<8,2> | 1.05×10⁶ eps (192 gross) | 1.32 eps | 8 eps | 3.22 eps |
+| posit<16,2> | 1.2×10¹⁸ eps (384 gross) | 1.80 eps | 2.1×10³ eps (331 gross) | 3.83 eps |
+| posit<32,2> | 1.4×10⁴² eps (384 gross) | 1.98 eps | 1.3×10⁸ eps (333 gross) | 4.76 eps |
+| posit<64,2> | 2.0×10⁹⁰ eps (384 gross) | 2.01 eps | 5.8×10¹⁷ eps (326 gross) | 4.28 eps |
+| takum<8> | 7.1×10⁷² eps (1,376 gross) | 1.12 eps | 8 eps | 3.28 eps |
+
+The scaling itself is exact. The fault is in how MTL5 finds the exponent to
+scale by. `pow2_scaling<T>::exponent(m)` halves m toward [1, 2) and stops when
+a halving doesn't decrease it, taking that for a non-finite m. Near the ends of
+a tapered type's range, not every binade is representable, so m·½ can round
+back to m. The search then stops early, often at e = 0:
+
+- posit<16,2> at 2⁵⁶ gets e = 0 against 52.
+- takum<8> at 2¹⁰⁰ to 2²⁵⁰ gets e = 0 against 103 to 239.
+
+The rotation then squares unscaled values. This study's `binary_exponent` reads
+the exponent through double after exact power-of-two steps, and gets all of
+these right. The same search costs one multiplication per binade: 88 ms per
+call for cfloat<256,19> near 2²⁰⁰⁰⁰⁰, against 0.014 ms here. That is the two
+hours. Both are filed as
+[mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680), and fixed on MTL5
+main; see [Rerun against MTL5 main](#rerun-against-mtl5-main).
+
+The rerun also moved the remedies' own rows in dd and qd: 5 base, 743 dd and
+43 qd scale, and 140 tail rows. The two runs used different Universal commits:
+2d5c785 for the committed results, 85172d9 for the rerun. Between them
+Universal fixed the dd and qd defects this study reported:
+
+- the `two_prod` residual at the top of the double range (universal#1884);
+- the `numeric_limits` traits (universal#1887, universal#1890);
+- sums at the top of the range (universal#1892);
+- dd's `sqrt` (85172d9).
+
+These address [universal#1881](https://github.com/stillwater-sc/universal/issues/1881),
+[universal#1882](https://github.com/stillwater-sc/universal/issues/1882) and
+[universal#1883](https://github.com/stillwater-sc/universal/issues/1883). The
+dd and qd findings above describe Universal at 2d5c785.
+
+The committed results stay those of 5.21.0, which the findings above describe.
+
+### Rerun against MTL5 main
+
+[mtl5#681](https://github.com/stillwater-sc/mtl5/pull/681) fixed
+[mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680) on MTL5 main.
+`pow2_scaling`'s fallback now reads the exponent through double, as
+`binary_exponent` does here, and steps by squared powers of two where a type's
+range passes double's. The study was rerun against MTL5 main at 8b31047, with
+mp-numerics 92e26d0 and the same Universal as the 5.22.0 rerun, 85172d9, so
+MTL5 is the only change between the two. The full run took 235 s, against
+7,974 s for 5.22.0.
+
+Identical rows, counted as above:
+
+| pair | 5.22.0 (base, scale, tail, repeat) | main |
+|---|---|---|
+| `givens_mtl5` vs `givens_pow2_scaled` | 57/57, 6947/7177, 3139/3139, 1368/1368 | 57/57, 7152/7177, 3139/3139, 1368/1368 |
+| `householder_mtl5` vs `householder_lapack_pow2` | 44/57, 6923/7177, 3057/3139, 905/1368 | 44/57, 7131/7177, 3057/3139, 905/1368 |
+
+The failures are gone. The worst ‖GᵀG − I‖ over the scale sweep, now with no
+gross samples in any of these types:
+
+| type | `givens_mtl5` | `givens_pow2_scaled` | `householder_mtl5` | `householder_lapack_pow2` |
+|---|---|---|---|---|
+| posit<8,2> | 1.32 eps | 1.32 eps | 3.22 eps | 3.22 eps |
+| posit<16,2> | 1.80 eps | 1.80 eps | 3.83 eps | 3.83 eps |
+| posit<32,2> | 1.98 eps | 1.98 eps | 4.76 eps | 4.76 eps |
+| posit<64,2> | 2.01 eps | 2.01 eps | 4.28 eps | 4.28 eps |
+| takum<8> | 1.12 eps | 1.12 eps | 3.28 eps | 3.28 eps |
+
+Of the rows that still differ, all but 20 are unchanged from the 5.22.0 rerun,
+the differences described there. The 20 new ones are takums:
+
+- **takum<8>:** 11 rotation rows, from 2⁻²³⁹ to 2⁻²³³ and four from 2²³³ to
+  2²³⁹, and 7 reflector rows, from 2⁻²³⁹ to 2⁻²³³. They differ at the rounding
+  level, in both directions. At the low end the rotation's ‖GᵀG − I‖ is 1 eps
+  against 0.44 eps, and the reflector's annihilation error 0.19 eps against
+  0.92 eps.
+- **takum<32>, takum<64>:** one rotation row each, at 2⁻²⁵⁴, where the error
+  in r is 86 to 88 eps against 58 to 62 eps.
+
+Both scalings multiply once by 2^k where 2^k is a value of the type. From
+2^±233 to 2^±237 it is not a value of takum<8>, and rounds to 2^±239:
+`scale_pow2` here multiplies by that rounded 2^k, where MTL5 steps x by exact
+powers of two instead, so the two round differently.
+
+The `.sysinfo` sidecars of this run record `universal_commit=unknown`, because
+Universal was used as an exported tree rather than a clone. The CSVs are not
+committed.
 
 ### Universal behaviour met along the way
 
