@@ -36,6 +36,27 @@ move an input by an ulp and change the last digits. The committed results are
 byte-identical between GCC 15 and Clang 21 on x86-64. `plot.py` needs
 matplotlib; `summarize.py` needs only the standard library.
 
+A default configure measures whatever MTL5 and Universal it gets: an installed
+MTL5 of at least 5.22 and an installed Universal through `find_package`, or
+otherwise both fetched from `main`. To reproduce a recorded run, check out the
+three commits in its `.sysinfo` and point CMake at the checkouts:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_DISABLE_FIND_PACKAGE_MTL5=ON -DCMAKE_DISABLE_FIND_PACKAGE_universal=ON \
+  -DFETCHCONTENT_SOURCE_DIR_MTL5=/path/to/mtl5 \
+  -DFETCHCONTENT_SOURCE_DIR_UNIVERSAL=/path/to/universal
+```
+
+The two `DISABLE` flags keep an installed copy from taking precedence over the
+checkouts. The runs this README reports:
+
+| run | mp-numerics | MTL5 | Universal |
+|---|---|---|---|
+| committed results (5.21.0) | d29d67d | d442189: v5.21.0's headers | 2d5c785 |
+| [rerun against 5.22.0](#rerun-against-mtl5-5220) | 7fedb19 | cf2f8a5: v5.22.0's headers | 85172d9 |
+| [rerun against main](#rerun-against-mtl5-main) | 92e26d0 | 8b31047 | 85172d9 |
+
 ## What is measured
 
 Each operator is built for x = (a, b) and measured exactly. The computed values
