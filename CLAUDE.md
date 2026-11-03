@@ -43,6 +43,38 @@ cmake -B build -DFETCHCONTENT_SOURCE_DIR_MTL5=../mtl5 \
   register with `mpnumerics_add_test`.
 - `docs/roadmap.md` — milestones and the Universal->mp-numerics migration plan.
 
+## Documentation site
+
+The site at https://stillwater-sc.github.io/mp-numerics/ is an Astro/Starlight
+project in `docs-site/`, built and deployed to GitHub Pages by
+`.github/workflows/docs.yml` (a pull request only builds it). It follows the
+MTL5 and Universal sites.
+
+**`docs-site/src/content/docs/` is 100% GENERATED — never write or edit files
+there.** `docs-site/sync-content.mjs` wipes and regenerates it, together with
+`docs-site/public/img/`, on every `npm run build` / `npm run dev`. Content
+comes from two places:
+
+- `docs/` — the site pages. `docs/site/*.mdx` are copied verbatim (they carry
+  their own frontmatter, which must include an `editUrl` pointing at the
+  `.mdx`); every other `docs/**/*.md` is listed in `FILE_MAP`,
+  and gets its title from its H1 and its links rewritten.
+- A study's `README.md` under `benchmarks/` — the README is the page, so it
+  stays the single source next to the study's code. List the study directory
+  in `STUDY_MAP`. Its `figures/` are copied to `public/img/studies/<slug>/`,
+  and any other relative link (results, sources, scripts) is sent to the file
+  on GitHub. Write figure links as `figures/<name>.svg` so they render on
+  GitHub too.
+
+To add a page: write it in `docs/<section>/` with an H1 and no frontmatter,
+add it to `FILE_MAP`, and add it to `sidebar` in `docs-site/astro.config.mjs`
+if the sidebar does not autogenerate that section. To add a study: add its
+directory to `STUDY_MAP` and its slug to the Studies sidebar.
+
+```bash
+cd docs-site && npm ci && npm run dev    # preview at http://localhost:4321/mp-numerics/
+```
+
 ## Conventions
 
 - C++20, header-only. Match the sister repos (mtl5, mp-iterative, mp-ir) for

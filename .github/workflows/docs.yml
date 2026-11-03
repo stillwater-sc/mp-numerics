@@ -1,0 +1,79 @@
+name: Documentation
+
+# Builds the Astro/Starlight site in docs-site/ and deploys it to GitHub Pages
+# (https://stillwater-sc.github.io/mp-numerics/). A pull request only builds,
+# so a change that breaks the site fails here; main builds and deploys.
+# Pages must be enabled with Source: GitHub Actions (Settings -> Pages).
+
+on:
+  push:
+    branches: [main]
+    paths: &site-paths
+      - 'docs/**'
+      - 'docs-site/**'
+      - 'benchmarks/**/README.md'
+      - 'benchmarks/**/figures/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths: *site-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Per ref, as in Universal: a new commit on a PR cancels that PR's stale build,
+# while deploys from main queue and are never interrupted. One global group
+# would let unrelated PRs cancel each other's runs.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          # Astro raises its Node floor in patch releases; take the latest 22.x
+          # rather than whatever the runner image has cached (universal#1835).
+          check-latest: true
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build site
+        run: npm run build
+
+      - name: Upload artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs-site/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    # Only the deploy job gets the Pages write permissions; the build job,
+    # which runs npm on pull requests too, keeps contents: read.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

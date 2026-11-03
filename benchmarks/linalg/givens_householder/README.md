@@ -408,10 +408,10 @@ Not changed here; filed in Universal so the results can be read correctly.
 
 | figure | shows |
 |---|---|
-| `scale_clean_range.svg` | the share of each type's exponent range where every sample is clean, per operator; each sampled exponent counts for the span of exponents it stands for, and one where every input flushes to zero counts as not clean |
-| `scale_rotations_*.svg`, `scale_reflectors_*.svg` | worst orthogonality across the exponent range, one panel per type; gross and non-finite rows are drawn in a band above the largest finite error |
-| `tail_reflectors_*.svg` | worst orthogonality of the three reflectors across the tail sweep |
-| `repeat_power.svg`, `repeat_product.svg` | deviation against k for repeated application, one line per type, over the trials that stayed finite; an x marks a checkpoint where some trials overflowed, a triangle at the top one where all did |
+| [`scale_clean_range.svg`](figures/scale_clean_range.svg) | the share of each type's exponent range where every sample is clean, per operator; each sampled exponent counts for the span of exponents it stands for, and one where every input flushes to zero counts as not clean |
+| [`scale_rotations_ieee_posit_fixpnt.svg`](figures/scale_rotations_ieee_posit_fixpnt.svg), [`scale_rotations_cfloat.svg`](figures/scale_rotations_cfloat.svg), [`scale_rotations_lns_takum_dd_qd.svg`](figures/scale_rotations_lns_takum_dd_qd.svg), [`scale_reflectors_ieee_posit_fixpnt.svg`](figures/scale_reflectors_ieee_posit_fixpnt.svg), [`scale_reflectors_cfloat.svg`](figures/scale_reflectors_cfloat.svg), [`scale_reflectors_lns_takum_dd_qd.svg`](figures/scale_reflectors_lns_takum_dd_qd.svg) | worst orthogonality across the exponent range, one panel per type; gross and non-finite rows are drawn in a band above the largest finite error |
+| [`tail_reflectors_ieee_posit_fixpnt.svg`](figures/tail_reflectors_ieee_posit_fixpnt.svg), [`tail_reflectors_cfloat.svg`](figures/tail_reflectors_cfloat.svg), [`tail_reflectors_lns_takum_dd_qd.svg`](figures/tail_reflectors_lns_takum_dd_qd.svg) | worst orthogonality of the three reflectors across the tail sweep |
+| [`repeat_power.svg`](figures/repeat_power.svg), [`repeat_product.svg`](figures/repeat_product.svg) | deviation against k for repeated application, one line per type, over the trials that stayed finite; an x marks a checkpoint where some trials overflowed, a triangle at the top one where all did |
 
 ![Clean share of the exponent range](figures/scale_clean_range.svg)
 

@@ -1,0 +1,21 @@
+/* Custom styles for mp-numerics docs */
+
+:root {
+  --sl-color-accent-low: #12331f;
+  --sl-color-accent: #3a8a5c;
+  --sl-color-accent-high: #b6e0c6;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #b6e0c6;
+  --sl-color-accent: #2f7a4f;
+  --sl-color-accent-high: #12331f;
+}
+
+/* The study figures are SVGs drawn at a fixed size; keep them inside the
+   content column on narrow screens. */
+.sl-markdown-content img {
+  max-width: 100%;
+  height: auto;
+}
+
