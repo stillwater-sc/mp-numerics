@@ -56,3 +56,21 @@ kernels where the method uses linear algebra, e.g. Chebyshev approximation):
   stalling? (mirrors the mp-ir / mp-iterative residual-precision question.)
 - Quire (exact accumulation) inside quadrature / polynomial evaluation via the
   `accumulator_traits` bridge, vs naive same-precision accumulation.
+
+## Milestone 3: control and stability numerics
+
+Kalman filtering and control-algorithm failure modes under mixed precision.
+See `docs/control.md` for the full taxonomy.
+
+- [ ] `applications/control/kalman_scalar` — scalar Kalman filter (1-D
+  position/velocity) across `double`, `float`, `posit<32,2>`, and
+  `posit<32,2>` with quire accumulation. Measures filter divergence,
+  covariance SPD preservation, and innovation consistency.
+- [ ] `benchmarks/control/kalman_precision` — precision sweep: error vs
+  number type over N timesteps.
+- [ ] `benchmarks/control/spd_preservation` — does P remain positive
+  definite? Failure mode: negative eigenvalue from rounding.
+- [ ] `benchmarks/control/consistency` — normalized innovation
+  chi-squared test across precisions.
+- [ ] Integrate LDL* factorization for gain solve (avoids Cholesky
+  square-root rounding per John Gustafson's note).
