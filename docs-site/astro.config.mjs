@@ -17,7 +17,9 @@ export default defineConfig({
         },
       ],
       editLink: {
-        // Study pages override this with their README (sync-content.mjs).
+        // Turns the edit link on. Every page sets its own editUrl (from
+        // sync-content.mjs, or in a docs/site/*.mdx frontmatter), because
+        // this base would be joined with the generated src/content/docs/ path.
         baseUrl:
           'https://github.com/stillwater-sc/mp-numerics/edit/main/docs/',
       },

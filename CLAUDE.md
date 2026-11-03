@@ -56,7 +56,8 @@ there.** `docs-site/sync-content.mjs` wipes and regenerates it, together with
 comes from two places:
 
 - `docs/` — the site pages. `docs/site/*.mdx` are copied verbatim (they carry
-  their own frontmatter); every other `docs/**/*.md` is listed in `FILE_MAP`,
+  their own frontmatter, which must include an `editUrl` pointing at the
+  `.mdx`); every other `docs/**/*.md` is listed in `FILE_MAP`,
   and gets its title from its H1 and its links rewritten.
 - A study's `README.md` under `benchmarks/` — the README is the page, so it
   stays the single source next to the study's code. List the study directory

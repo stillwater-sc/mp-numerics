@@ -129,7 +129,10 @@ function addFrontmatter(content, srcRelative) {
   let body = stripFirstHeading(content);
   body = rewriteImagePaths(body);
   body = rewriteLinks(body, srcRelative);
-  return frontmatter(extractTitle(content)) + body;
+  // Starlight builds an edit link from editLink.baseUrl plus the GENERATED
+  // path (src/content/docs/...), which is not where the page is written.
+  const edit = `editUrl: "${GITHUB}/edit/main/docs/${srcRelative}"\n`;
+  return frontmatter(extractTitle(content), edit) + body;
 }
 
 function studyPage(content, studyDir, slug) {

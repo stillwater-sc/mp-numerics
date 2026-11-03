@@ -21,8 +21,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Per ref, as in Universal: a new commit on a PR cancels that PR's stale build,
 # while deploys from main queue and are never interrupted. One global group
@@ -67,6 +65,11 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    # Only the deploy job gets the Pages write permissions; the build job,
+    # which runs npm on pull requests too, keeps contents: read.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
