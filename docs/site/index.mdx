@@ -1,0 +1,59 @@
+---
+title: mp-numerics — Mixed-Precision Numerical Methods
+description: Classic numerical methods studied across number systems, composing MTL5 for linear algebra and Universal for parameterized arithmetic.
+template: splash
+hero:
+  tagline: >
+    Where does each number system stop being usable? mp-numerics runs classic
+    numerical methods in IEEE, posit, takum, cfloat, lns, fixed-point and
+    multi-component arithmetic, and measures the answer exactly.
+  actions:
+    - text: Read the studies
+      link: /mp-numerics/studies/linalg/givens-householder/
+      icon: right-arrow
+      variant: primary
+    - text: Get Started
+      link: /mp-numerics/getting-started/
+      icon: open-book
+    - text: View on GitHub
+      link: https://github.com/stillwater-sc/mp-numerics
+      icon: external
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="The integration layer" icon="puzzle">
+    [MTL5](https://stillwater-sc.github.io/mtl5/) is the linear-algebra layer and
+    does not depend on Universal. mp-numerics is where its algorithms meet
+    [Universal](https://stillwater-sc.github.io/universal/)'s number types.
+  </Card>
+  <Card title="Measured exactly" icon="approve-check">
+    Computed values are read out of the number type as exact expansions, so a
+    reported error is the error of the arithmetic, not of the measurement.
+  </Card>
+  <Card title="Reproducible" icon="document">
+    Every committed result carries a `.sysinfo` sidecar with the platform,
+    compiler and the commits of mp-numerics, MTL5 and Universal it was run
+    against.
+  </Card>
+  <Card title="Organized by method" icon="list-format">
+    Quadrature, root finding, interpolation, optimization, approximation and
+    linear algebra, each with applications, benchmarks and tests.
+  </Card>
+</CardGrid>
+
+## Studies
+
+<CardGrid>
+  <LinkCard
+    title="Givens rotations and Householder reflectors"
+    description="One rotation or one reflector at a time, across 65 types: where each form loses orthogonality, and why (#13)."
+    href="/mp-numerics/studies/linalg/givens-householder/"
+  />
+  <LinkCard
+    title="QR and least squares"
+    description="The factorizations built from them: where each type stops being usable, and whether the method or the type decides (#14)."
+    href="/mp-numerics/studies/linalg/decompositions/"
+  />
+</CardGrid>

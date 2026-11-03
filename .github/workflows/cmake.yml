@@ -1,10 +1,18 @@
 name: CMake
 
+# A change that touches only the docs or the site is built by docs.yml, not here.
 on:
   push:
     branches: [ main ]
+    paths-ignore: &docs-only
+      - 'docs/**'
+      - 'docs-site/**'
+      - '**.md'
+      - 'benchmarks/**/figures/**'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches: [ main ]
+    paths-ignore: *docs-only
 
 env:
   BUILD_TYPE: Release

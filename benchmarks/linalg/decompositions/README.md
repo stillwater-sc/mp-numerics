@@ -265,10 +265,10 @@ tables give its κ.
 
 ## Figures
 
-- `figures/qr_backward_n16.svg`: columnwise backward error against κ, one panel
+- [`figures/qr_backward_n16.svg`](figures/qr_backward_n16.svg): columnwise backward error against κ, one panel
   per type, randsvd solid and graded dashed.
-- `figures/qr_orthogonality_n16.svg`: ‖QᵀQ − I‖ against κ, likewise.
-- `figures/lstsq_forward_32x16.svg`: least-squares forward error against the
+- [`figures/qr_orthogonality_n16.svg`](figures/qr_orthogonality_n16.svg): ‖QᵀQ − I‖ against κ, likewise.
+- [`figures/lstsq_forward_32x16.svg`](figures/lstsq_forward_32x16.svg): least-squares forward error against the
   stored κ, zero residual solid and 45° dashed, with κε and κ²ε as guides.
 
 ![QR columnwise backward error](figures/qr_backward_n16.svg)

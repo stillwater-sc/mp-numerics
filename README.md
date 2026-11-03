@@ -1,6 +1,7 @@
 # mp-numerics
 
 [![CMake](https://github.com/stillwater-sc/mp-numerics/actions/workflows/cmake.yml/badge.svg)](https://github.com/stillwater-sc/mp-numerics/actions/workflows/cmake.yml)
+[![Documentation](https://github.com/stillwater-sc/mp-numerics/actions/workflows/docs.yml/badge.svg)](https://stillwater-sc.github.io/mp-numerics/)
 
 **Mixed-precision numerical methods.** mp-numerics composes two header-only
 libraries — [MTL5](https://github.com/stillwater-sc/mtl5) for linear algebra and
@@ -12,6 +13,9 @@ precision, posits, ...).
 MTL5 deliberately has **no dependency on Universal**: it is the general
 linear-algebra layer. mp-numerics is the integration layer where numerical
 methods meet Universal's number types.
+
+The studies are published at
+**[stillwater-sc.github.io/mp-numerics](https://stillwater-sc.github.io/mp-numerics/)**.
 
 ## Build
 
@@ -61,6 +65,7 @@ tests/
   linalg/                        # exact read-out; rotations, reflectors, QR
   roots/ interpolation/ optimization/ approximation/   # (no tests yet -- roadmap)
 docs/roadmap.md                  # milestones and migration plan
+docs/ docs-site/                 # the published site: content, and the Astro/Starlight build
 ```
 
 ## License
