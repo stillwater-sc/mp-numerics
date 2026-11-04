@@ -1,5 +1,6 @@
 // givens_householder study: cfloat from 8 to 32 bits, including both FP8
-// layouts (E4M3 and E5M2, without OCP's reuse of the top exponent).
+// layouts (E4M3 and E5M2). Only the maxexp variant reuses the top exponent as
+// OCP's E4M3 does, and it keeps an infinity, which OCP's E4M3 has not.
 #include "cfloat_variants.hpp"
 
 namespace study {
