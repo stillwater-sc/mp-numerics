@@ -7,8 +7,8 @@ kernels, `mtl::apply_givens_rotation` (`operation/givens.hpp`) and
 `mtl::householder` (`operation/householder.hpp`), against the forms LAPACK uses
 and against two power-of-two-scaled forms written here.
 
-It covers 65 types: the hardware IEEE types, posits, fixed point, the cfloat
-matrix from FP8 to 256 bits in three variants, lns, linear takums, and
+It covers 81 types: the hardware IEEE types, posits, fixed point, the cfloat
+matrix from FP8 to 256 bits in four variants, lns, linear takums, and
 double-double and quad-double.
 
 ## Running it
@@ -21,13 +21,14 @@ python3 benchmarks/linalg/givens_householder/plot.py results/ figures/
 ```
 
 `--quick` runs a small sample, and `--family ieee,posit,fixpnt,cfloat,lns,takum,dd,qd`
-picks families (all by default). The full run takes about four minutes against
-MTL5 5.21.0, most of it in the wide cfloats. Against 5.22.0 it takes over two
+picks families (all by default). The full run takes about five minutes against
+MTL5 5.21.0, most of it in the wide cfloats. For the 57 types measured before
+the last cfloats were added, it took about four; against 5.22.0 it took over two
 hours: `givens_mtl5` and `householder_mtl5` then go through MTL5's
 `pow2_scaling`, whose exponent search costs one multiplication per binade
 ([mtl5#680](https://github.com/stillwater-sc/mtl5/issues/680)). MTL5 main fixes
 that ([mtl5#681](https://github.com/stillwater-sc/mtl5/pull/681)), and the run
-takes about four minutes again. Each CSV has a `.sysinfo` sidecar recording the
+took about four minutes again. Each CSV has a `.sysinfo` sidecar recording the
 platform, compiler, sample counts and the commits of mp-numerics, MTL5 and
 Universal. The commits are read when CMake configures, so reconfigure before a
 run whose results are kept; `+dirty` marks uncommitted changes. The inputs come
@@ -53,7 +54,7 @@ checkouts. The runs this README reports:
 
 | run | mp-numerics | MTL5 | Universal |
 |---|---|---|---|
-| committed results (5.21.0) | d29d67d | d442189: v5.21.0's headers | 2d5c785 |
+| committed results (5.21.0) | 6ffd94f | d442189: v5.21.0's headers | 2d5c785 |
 | [rerun against 5.22.0](#rerun-against-mtl5-5220) | 7fedb19 | cf2f8a5: v5.22.0's headers | 85172d9 |
 | [rerun against main](#rerun-against-mtl5-main) | 92e26d0 | 8b31047 | 85172d9 |
 
@@ -119,7 +120,7 @@ the failures found there, in [Rerun against MTL5 main](#rerun-against-mtl5-main)
 | ieee | `float`, `double`, `long double` (x87 80-bit here; the `bits` column records which one ran) |
 | posit | posit<8,2>, <16,2>, <32,2>, <64,2>, and posit<16,1> |
 | fixpnt | fixpnt<16,8> and <32,16>, each wrapping (`mod`) and saturating (`sat`) |
-| cfloat | cfloat<8,4> (FP8 E4M3) and <8,5> (E5M2), <16,5>, <24,8>, <32,8>, <40,11>, <48,11>, <56,11>, <64,11>, <80,15>, <128,15>, <256,19>; the exponent is IEEE's where IEEE defines the size, truncated from the next IEEE size otherwise. Each in three variants: IEEE behaviour (gradual underflow, overflow to infinity), `nosub` (no subnormals) and `sat` (overflow saturates to max). The three variants of a size see the same inputs |
+| cfloat | cfloat<8,4> (FP8 E4M3) and <8,5> (E5M2), <16,5>, <24,8>, <32,8>, <40,11>, <44,11>, <48,11>, <52,11>, <56,11>, <60,11>, <64,11>, <80,15>, <128,15>, <256,19>; the exponent is IEEE's where IEEE defines the size, truncated from the next IEEE size otherwise. Each in four variants: IEEE behaviour (gradual underflow, overflow to infinity), `nosub` (no subnormals), `sat` (overflow saturates to max) and `maxexp` (IEEE behaviour, but the all-ones exponent holds finite values, as OCP's E4M3 uses it: one more binade at the top, with only its last encodings left for infinity and NaN). The four variants of a size see the same inputs |
 | lns | lns<8,3>, <16,10>, <32,23>: the ranges of E4M3 (2^±8), binary16 (2^±16) and binary32 (2^±128) |
 | takum | linear takum<8>, <16>, <32>, <64>, with the specified three regime bits; range 2^±255 |
 | dd, qd | `sw::universal::dd` and `qd`: double's range, two and four times its precision |
@@ -131,7 +132,9 @@ so the cfloat rows can be read as the corresponding IEEE type's would be.
 ## Findings
 
 Findings 1 to 7 come from the first part of the study (IEEE, posit, fixpnt) and
-hold for the types added since. Findings 8 to 12 are about the added types.
+hold for the types added since. Findings 8 to 12 are about the types added in
+the second part, and 13 and 14 about the cfloat sizes and the `maxexp` variant
+added last.
 
 **1. MTL5's rotation fails outside half the exponent range.** a·a overflows
 once \|a\| passes sqrt(max), and underflows below sqrt(min), long before r
@@ -166,7 +169,7 @@ thresholds would have to come from where the type is precise, not from where it
 overflows. Findings 10 and 11 show the same for takum and dd.
 
 **4. Scaling by an exact power of two fixes the rotation in every type.**
-`givens_pow2_scaled` is clean across the whole range of all 65 types, within
+`givens_pow2_scaled` is clean across the whole range of all 81 types, within
 4.6 eps in dd and takum and within 2.2 eps in every other type. The scaling rounds nothing in a
 floating-point type and puts the squares near 1.
 
@@ -184,7 +187,9 @@ entry of the normalized v is at most 1, and `householder_lapack_pow2` stays
 within 8.7 eps for every type, at every scale and every tail (5.4 eps outside
 takum). Its only failures are a few non-finite samples in the top binade of
 the 8- and 16-bit cfloats with IEEE overflow, where a value the reflector must
-form, ‖x‖ or the dot product of its application, overflows the type. MTL5's identity fallback ([mtl5#662](https://github.com/stillwater-sc/mtl5/pull/662)) catches the worst cases, but only
+form, ‖x‖ or the dot product of its application, overflows the type. The
+`maxexp` variant moves that binade up by one; in cfloat<16,5> that is enough to
+clear it (finding 14). MTL5's identity fallback ([mtl5#662](https://github.com/stillwater-sc/mtl5/pull/662)) catches the worst cases, but only
 once the error exceeds the tail: from j = 8 in posit<16,2> and j = 40 in
 posit<64,2>.
 
@@ -249,6 +254,48 @@ within 2.2 eps, and MTL5's reflector stays within 9 eps. The one excess is at
 the bottom edge of the unscaled band, where the squares are subnormal:
 1.8×10¹⁹ eps (2^-48) in cfloat<128,15>.
 
+**13. The cfloats at 44, 52 and 60 bits fall between their neighbours.**
+They have double's exponent, so their ranges, and the bands where each form is
+clean, are those of cfloat<40,11> to <64,11>: MTL5's rotation is clean for
+about half the range, and `dlartg`'s and the power-of-two rotation everywhere,
+within 1.9 eps. Where an error grows with precision, it does so smoothly.
+`lapy2`'s error near the subnormals is set by the absolute error of r there,
+so in eps it grows as 1/eps, by 2⁴ per 4 bits: 6.7×10⁷ eps at 40 bits,
+1.1×10⁹ at 44, 2.7×10¹¹ at 52, 7.0×10¹³ at 60 and 1.1×10¹⁵ at 64. MTL5's
+rotation without subnormals grows with precision too: 4.9×10⁷ eps in
+cfloat<44,11,nosub>, 1.0×10¹⁰ at 52 and 3.7×10¹² at 60 (finding 8). Nothing
+changes character between the sizes #13 listed and the ones the study first
+ran.
+
+**14. Using the top exponent for values adds a binade, and moves the failures
+up with it.** With `maxexp`, the all-ones exponent holds finite values, so the
+range ends one binade higher. Below the overflow thresholds nothing changes.
+The base and tail rows are identical to the IEEE variant's in all 15 sizes.
+The scale sweep spreads its grid over the longer range, so many exponents are
+sampled with different random inputs, and there the worst errors differ by up
+to a factor of 2.7, as different samples do. The counts of gross, non-finite
+and identity samples differ at only 13 exponents, all at one of the two
+thresholds:
+
+- The unscaled forms, MTL5's rotation and the textbook reflector, stay clean
+  half a binade further, since a·a has one more binade to fit in.
+  cfloat<52,11,maxexp> is clean at 2⁵¹², where 26 of the 32 IEEE samples
+  overflow.
+- The reflectors' failures at the top of the 8-bit types' range move up with
+  the range instead of going away. In cfloat<16,5,maxexp> they go: what
+  overflowed in the old top binade fits, and the new binade is clean, so
+  MTL5's reflector and `householder_lapack_pow2` are clean over the whole
+  range.
+- In repeated application, a trial that overflowed in IEEE FP8 can stay
+  finite for one more checkpoint, and then reports what it grew to, as a
+  saturating type does (finding 9): 3.0×10³ eps for E4M3's rotations at
+  k = 512 against 2.2×10³ eps with saturation, and 3.9×10⁵ eps in E5M2 at
+  k = 128. 9 of the 504 repeat rows of the 8- and 16-bit `maxexp` types change
+  this way; the wider types' rows are identical.
+
+The rotation scaled by a power of two, and `dlartg`'s, are clean in every
+`maxexp` type, within 2.2 eps.
+
 ### What this suggested for MTL5
 
 Both were filed as MTL5 issues and adopted on MTL5 main, to ship in 5.22.0:
@@ -258,7 +305,7 @@ Both were filed as MTL5 issues and adopted on MTL5 main, to ship in 5.22.0:
   `givens_pow2_scaled` does. In IEEE that costs two exponent extractions and
   removes the half-range limit; in a posit, takum, dd, lns or fixed point it
   also keeps the accuracy. It was the only rotation clean and accurate in all
-  65 types ([mtl5#671](https://github.com/stillwater-sc/mtl5/issues/671),
+  57 types measured then ([mtl5#671](https://github.com/stillwater-sc/mtl5/issues/671),
   done in [mtl5#673](https://github.com/stillwater-sc/mtl5/pull/673)).
 - `householder()` could reflect onto −sign(x₀)‖x‖e₁, as `dlarfg` does. That
   changes the sign of R's diagonal, which MTL5 5.21.0 kept positive
@@ -271,7 +318,9 @@ Both were filed as MTL5 issues and adopted on MTL5 main, to ship in 5.22.0:
 ### Rerun against MTL5 5.22.0
 
 The study was rerun against MTL5 5.22.0 (cf2f8a5, mp-numerics 7fedb19,
-Universal 85172d9). With the remedies adopted, `givens_mtl5` should reproduce
+Universal 85172d9), over the 57 types it measured then: the cfloats at 44, 52
+and 60 bits and the `maxexp` variant came later. With the remedies adopted,
+`givens_mtl5` should reproduce
 `givens_pow2_scaled` and `householder_mtl5` should reproduce
 `householder_lapack_pow2`. Comparing the two rows of each pair, every column of
 every input class:
@@ -442,39 +491,63 @@ worst orthogonality within it.
 | cfloat<8,4> | -9..7 | -9..3, 1.06 | all, 8 | all, 1.32 | all, 1.12 | -9..6, 3.47 | -9..2, 3.53 | -9..6, 3.22 |
 | cfloat<8,4,nosub> | -6..7 | -6..3, 2.53 | all, 1.32 | all, 1.32 | all, 1.06 | -6..6, 3.47 | -6..2, 2.94 | -6..6, 2.55 |
 | cfloat<8,4,sat> | -9..7 | -9..4, 2.62 | all, 8 | all, 1.32 | all, 1.12 | all, 3.47 | -9..3, 3.93 | all, 3.22 |
+| cfloat<8,4,maxexp> | -9..8 | -9..4, 1.06 | all, 8 | all, 1.32 | all, 1.12 | -9..7, 3.47 | -9..3, 3.53 | -9..7, 3.22 |
 | cfloat<8,5> | -16..15 | -16..7, 1.31 | all, 1 | all, 1.31 | all, 1.31 | -16..13, 3.22 | -16..6, 3.06 | -16..14, 3.22 |
 | cfloat<8,5,nosub> | -14..15 | -14..7, 1.31 | all, 1 | all, 1.31 | all, 1.31 | -14..14, 3.22 | -14..6, 3.06 | -14..14, 3.22 |
 | cfloat<8,5,sat> | -16..15 | -16..8, 2.81 | all, 1 | all, 1.31 | all, 1.31 | all, 3.22 | -16..7, 4.16 | all, 3.22 |
+| cfloat<8,5,maxexp> | -16..16 | -16..8, 1.31 | all, 1 | all, 1.31 | all, 1.31 | -16..13, 3.22 | -16..7, 3.06 | -16..15, 3.22 |
 | cfloat<16,5> | -24..15 | -12..7, 1.2 | -22..15, 256 | all, 1.79 | all, 1.79 | -24..14, 6.24 | -11..6, 214 | -24..14, 3.89 |
 | cfloat<16,5,nosub> | -13..15 | -6..7, 264 | all, 2.23 | all, 1.67 | all, 1.2 | all, 6.23 | -6..6, 240 | all, 3.89 |
 | cfloat<16,5,sat> | -24..15 | -12..8, 1.84 | -22..15, 256 | all, 1.79 | all, 1.79 | all, 6.24 | -11..7, 214 | all, 3.89 |
+| cfloat<16,5,maxexp> | -24..16 | -12..8, 1.2 | -22..16, 256 | all, 1.79 | all, 1.79 | all, 6.24 | -11..7, 214 | all, 3.89 |
 | cfloat<24,8> | -141..127 | -70..63, 1.23 | -139..127, 8.19e+03 | all, 2.08 | all, 2.08 | all, 9.05 | -70..63, 1.4e+04 | all, 4.18 |
 | cfloat<24,8,nosub> | -126..127 | -126..63, 1.1e+04 | all, 2.46 | all, 1.74 | all, 1.25 | all, 9.05 | -126..63, 1.0e+04 | all, 4.18 |
 | cfloat<24,8,sat> | -141..127 | -70..63, 1.23 | -139..127, 8.19e+03 | all, 2.08 | all, 2.08 | all, 9.05 | -70..63, 1.4e+04 | all, 4.18 |
+| cfloat<24,8,maxexp> | -141..128 | -70..64, 1.23 | -139..128, 8.19e+03 | all, 1.81 | all, 1.44 | all, 9.05 | -70..62, 1.4e+04 | all, 4.18 |
 | cfloat<32,8> | -149..127 | -74..63, 4.11 | -147..127, 2.1e+06 | all, 1.77 | all, 1.68 | all, 8.3 | -74..63, 3.9e+06 | all, 5.24 |
 | cfloat<32,8,nosub> | -125..127 | -62..63, 2.7e+06 | all, 2.4 | all, 1.77 | all, 1.28 | all, 8.14 | -62..63, 2.7e+06 | all, 4.25 |
 | cfloat<32,8,sat> | -149..127 | -74..63, 4.11 | -147..127, 2.1e+06 | all, 1.77 | all, 1.68 | all, 8.3 | -74..63, 3.9e+06 | all, 5.24 |
+| cfloat<32,8,maxexp> | -149..128 | -74..64, 15.6 | -147..128, 2.1e+06 | all, 1.77 | all, 1.68 | all, 8.3 | -74..62, 3.9e+06 | all, 5.24 |
 | cfloat<40,11> | -1050..1023 | -515..501, 1.26 | -1049..1023, 6.7e+07 | all, 1.77 | all, 1.39 | all, 7.82 | -515..501, 455 | all, 4.66 |
 | cfloat<40,11,nosub> | -1021..1023 | -508..509, 3.5e+06 | all, 2.49 | all, 1.77 | all, 1.26 | all, 7.82 | -508..509, 3.5e+06 | all, 4.66 |
 | cfloat<40,11,sat> | -1050..1023 | -515..501, 1.26 | -1049..1023, 6.7e+07 | all, 1.77 | all, 1.39 | all, 7.82 | -515..501, 455 | all, 4.66 |
+| cfloat<40,11,maxexp> | -1050..1024 | -515..502, 1.26 | -1049..1024, 6.7e+07 | all, 1.77 | all, 1.39 | all, 7.82 | -515..502, 455 | all, 4.66 |
+| cfloat<44,11> | -1054..1023 | -518..500, 1.25 | -1052..1023, 1.1e+09 | all, 1.79 | all, 1.27 | all, 8.13 | -518..500, 2.5e+04 | all, 4.54 |
+| cfloat<44,11,nosub> | -1021..1023 | -508..509, 4.9e+07 | all, 2.51 | all, 1.79 | all, 1.26 | all, 8.13 | -508..509, 1.5e+07 | all, 4.54 |
+| cfloat<44,11,sat> | -1054..1023 | -518..500, 1.25 | -1052..1023, 1.1e+09 | all, 1.79 | all, 1.27 | all, 8.13 | -518..500, 2.5e+04 | all, 4.54 |
+| cfloat<44,11,maxexp> | -1054..1024 | -518..501, 1.25 | -1052..1024, 1.1e+09 | all, 1.79 | all, 1.27 | all, 8.13 | -518..501, 2.5e+04 | all, 4.54 |
 | cfloat<48,11> | -1058..1023 | -521..499, 1.24 | -1056..1023, 1.7e+10 | all, 1.89 | all, 1.89 | all, 7.85 | -521..499, 1.2e+06 | all, 4.45 |
 | cfloat<48,11,nosub> | -1021..1023 | -508..509, 1.0e+09 | all, 2.34 | all, 1.87 | all, 1.25 | all, 7.85 | -508..509, 2.0e+08 | all, 4.45 |
 | cfloat<48,11,sat> | -1058..1023 | -521..499, 1.24 | -1056..1023, 1.7e+10 | all, 1.89 | all, 1.89 | all, 7.85 | -521..499, 1.2e+06 | all, 4.45 |
+| cfloat<48,11,maxexp> | -1058..1024 | -521..500, 1.24 | -1056..1024, 1.7e+10 | all, 1.89 | all, 1.89 | all, 7.85 | -521..500, 1.2e+06 | all, 4.45 |
+| cfloat<52,11> | -1062..1023 | -524..498, 1.27 | -1060..1023, 2.7e+11 | all, 1.8 | all, 1.65 | all, 9.01 | -524..498, 8.7e+07 | all, 4.34 |
+| cfloat<52,11,nosub> | -1021..1023 | -508..509, 1.0e+10 | all, 2.59 | all, 1.8 | all, 1.27 | all, 9.01 | -508..509, 1.0e+10 | all, 4.34 |
+| cfloat<52,11,sat> | -1062..1023 | -524..512, 1.66 | -1060..1023, 2.7e+11 | all, 1.8 | all, 1.65 | all, 9.01 | -524..498, 8.7e+07 | all, 4.34 |
+| cfloat<52,11,maxexp> | -1062..1024 | -524..512, 1.27 | -1060..1024, 2.7e+11 | all, 1.8 | all, 1.65 | all, 9.01 | -524..499, 8.7e+07 | all, 4.34 |
 | cfloat<56,11> | -1066..1023 | -527..511, 1.23 | -1064..1023, 4.4e+12 | all, 1.78 | all, 1.72 | all, 7.61 | -527..511, 5.2e+09 | all, 4.52 |
 | cfloat<56,11,nosub> | -1021..1023 | -508..509, 2.5e+11 | all, 2.46 | all, 1.78 | all, 1.23 | all, 7.61 | -508..509, 2.5e+11 | all, 4.52 |
 | cfloat<56,11,sat> | -1066..1023 | -527..511, 1.23 | -1064..1023, 4.4e+12 | all, 1.78 | all, 1.72 | all, 7.61 | -527..511, 5.2e+09 | all, 4.52 |
+| cfloat<56,11,maxexp> | -1066..1024 | -527..511, 1.23 | -1064..1024, 4.4e+12 | all, 1.78 | all, 1.72 | all, 7.61 | -527..511, 5.2e+09 | all, 4.52 |
+| cfloat<60,11> | -1070..1023 | -530..510, 1.25 | -1068..1023, 7.0e+13 | all, 1.94 | all, 1.46 | all, 8.07 | -530..510, 2.6e+11 | all, 4.19 |
+| cfloat<60,11,nosub> | -1021..1023 | -508..509, 3.7e+12 | all, 2.42 | all, 1.94 | all, 1.26 | all, 8.07 | -508..509, 3.7e+12 | all, 4.19 |
+| cfloat<60,11,sat> | -1070..1023 | -530..510, 1.25 | -1068..1023, 7.0e+13 | all, 1.94 | all, 1.46 | all, 8.07 | -530..510, 2.6e+11 | all, 4.19 |
+| cfloat<60,11,maxexp> | -1070..1024 | -530..510, 1.25 | -1068..1024, 7.0e+13 | all, 1.94 | all, 1.3 | all, 8.07 | -530..510, 2.6e+11 | all, 4.19 |
 | cfloat<64,11> | -1074..1023 | -533..509, 1.24 | -1072..1023, 1.1e+15 | all, 1.87 | all, 1.75 | all, 7.68 | -533..509, 2.8e+13 | all, 4.44 |
 | cfloat<64,11,nosub> | -1021..1023 | -508..509, 6.6e+13 | all, 2.52 | all, 1.87 | all, 1.27 | all, 7.51 | -508..509, 6.6e+13 | all, 4.44 |
 | cfloat<64,11,sat> | -1074..1023 | -533..509, 1.24 | -1072..1023, 1.1e+15 | all, 1.87 | all, 1.75 | all, 7.68 | -533..509, 2.8e+13 | all, 4.44 |
+| cfloat<64,11,maxexp> | -1074..1024 | -533..509, 1.24 | -1072..1024, 1.1e+15 | all, 1.87 | all, 1.75 | all, 7.68 | -533..509, 2.8e+13 | all, 4.44 |
 | cfloat<80,15> | -16446..16383 | -8187..8124, 2.07 | -16444..16383, 4.6e+18 | all, 2.07 | all, 2.14 | all, 7.36 | -8187..8124, 3.1 | all, 4.88 |
 | cfloat<80,15,nosub> | -16381..16383 | -8139..8140, 2.07 | all, 2.61 | all, 2.07 | all, 2.14 | all, 7.36 | -8139..8140, 3.1 | all, 4.88 |
 | cfloat<80,15,sat> | -16446..16383 | -8187..8124, 2.07 | -16444..16383, 4.6e+18 | all, 2.07 | all, 2.14 | all, 7.36 | -8187..8124, 3.1 | all, 4.88 |
+| cfloat<80,15,maxexp> | -16446..16384 | -8187..8125, 2.07 | -16444..16384, 4.6e+18 | all, 2.07 | all, 2.14 | all, 7.36 | -8187..8125, 3.1 | all, 4.88 |
 | cfloat<128,15> | -16494..16383 | -8223..8112, 1.8e+19 | -16492..16383, 1.3e+33 | all, 1.88 | all, 1.79 | all, 8.88 | -8223..8112, 2.3e+19 | all, 5.07 |
 | cfloat<128,15,nosub> | -16381..16383 | -8139..8140, 1.52 | all, 2.7 | all, 1.88 | all, 1.79 | all, 8.88 | -8139..8140, 2.78 | all, 5.07 |
 | cfloat<128,15,sat> | -16494..16383 | -8223..8112, 1.8e+19 | -16492..16383, 1.3e+33 | all, 1.88 | all, 1.79 | all, 8.88 | -8223..8112, 2.3e+19 | all, 5.07 |
+| cfloat<128,15,maxexp> | -16494..16384 | -8223..8113, 1.8e+19 | -16492..16384, 1.3e+33 | all, 1.88 | all, 1.79 | all, 8.88 | -8223..8113, 2.3e+19 | all, 5.07 |
 | cfloat<256,19> | -262378..262143 | -130423..130188, 1.44 | -262376..262143, 2.8e+70 | all, 1.89 | all, 1.45 | all, 8.48 | -130423..130188, 2.85 | all, 4.31 |
 | cfloat<256,19,nosub> | -262141..262143 | -130246..130247, 1.44 | all, 2.58 | all, 1.89 | all, 1.52 | all, 8.48 | -130246..130247, 2.85 | all, 4.31 |
 | cfloat<256,19,sat> | -262378..262143 | -130423..130188, 1.44 | -262376..262143, 2.8e+70 | all, 1.89 | all, 1.45 | all, 8.48 | -130423..130188, 2.85 | all, 4.31 |
+| cfloat<256,19,maxexp> | -262378..262144 | -130423..130189, 1.44 | -262376..262144, 2.8e+70 | all, 1.89 | all, 1.45 | all, 8.48 | -130423..130189, 2.85 | all, 4.31 |
 | lns<8,3> | -7..7 | -7..4, 4 | all, 1.44 | all, 1.44 | all, 1 | all, 2.43 | -7..3, 7.15 | all, 2.5 |
 | lns<16,10> | -15..15 | -7..8, 484 | all, 1.5 | all, 1.5 | all, 0.994 | all, 3.11 | -7..7, 374 | all, 2.85 |
 | lns<32,23> | -127..127 | -62..64, 5.7e+05 | all, 1.5 | all, 1.5 | all, 0.996 | all, 3.34 | -62..63, 5.8e+05 | all, 2.93 |
@@ -508,39 +581,63 @@ where the tail rounds to zero in the type.
 | cfloat<8,4> | 1.32 | 1.69 | 1.32 | 1.32 | 3.47 (I from j=3) | 2.53 | 3.22 (I from j=11) |
 | cfloat<8,4,nosub> | 1.32 | 1.69 | 1.32 | 1.32 | 3.47 (I from j=3) | 2.53 | 3.22 (I from j=7) |
 | cfloat<8,4,sat> | 1.32 | 1.69 | 1.32 | 1.32 | 3.47 (I from j=3) | 2.53 | 3.22 (I from j=11) |
+| cfloat<8,4,maxexp> | 1.32 | 1.69 | 1.32 | 1.32 | 3.47 (I from j=3) | 2.53 | 3.22 (I from j=11) |
 | cfloat<8,5> | 1 | 1 | 1 | 1 | 3.22 (I from j=1) | 2.57 | 2.33 |
 | cfloat<8,5,nosub> | 1 | 1 | 1 | 1 | 3.22 (I from j=1) | 2.57 | 2.33 |
 | cfloat<8,5,sat> | 1 | 1 | 1 | 1 | 3.22 (I from j=1) | 2.57 | 2.33 |
+| cfloat<8,5,maxexp> | 1 | 1 | 1 | 1 | 3.22 (I from j=1) | 2.57 | 2.33 |
 | cfloat<16,5> | 1.49 | 1.69 | 1.49 | 1.49 | 5.67 (I from j=8) | 3.53 | 3.46 |
 | cfloat<16,5,nosub> | 1.49 | 1.69 | 1.49 | 1.49 | 5.67 (I from j=7) | 3.53 | 3.46 (I from j=15) |
 | cfloat<16,5,sat> | 1.49 | 1.69 | 1.49 | 1.49 | 5.67 (I from j=8) | 3.53 | 3.46 |
+| cfloat<16,5,maxexp> | 1.49 | 1.69 | 1.49 | 1.49 | 5.67 (I from j=8) | 3.53 | 3.46 |
 | cfloat<24,8> | 1.6 | 1.6 | 1.6 | 1.6 | 6.56 (I from j=14) | 3.55 | 3.47 |
 | cfloat<24,8,nosub> | 1.6 | 1.6 | 1.6 | 1.6 | 6.56 (I from j=14) | 3.55 | 3.47 |
 | cfloat<24,8,sat> | 1.6 | 1.6 | 1.6 | 1.6 | 6.56 (I from j=14) | 3.55 | 3.47 |
+| cfloat<24,8,maxexp> | 1.6 | 1.6 | 1.6 | 1.6 | 6.56 (I from j=14) | 3.55 | 3.47 |
 | cfloat<32,8> | 1.67 | 1.96 | 1.67 | 1.67 | 7.11 (I from j=22) | 3.71 | 4.02 |
 | cfloat<32,8,nosub> | 1.67 | 1.96 | 1.67 | 1.67 | 7.11 (I from j=22) | 3.71 | 4.02 |
 | cfloat<32,8,sat> | 1.67 | 1.96 | 1.67 | 1.67 | 7.11 (I from j=22) | 3.71 | 4.02 |
+| cfloat<32,8,maxexp> | 1.67 | 1.96 | 1.67 | 1.67 | 7.11 (I from j=22) | 3.71 | 4.02 |
 | cfloat<40,11> | 1.55 | 1.7 | 1.55 | 1.55 | 7.18 (I from j=27) | 3.79 | 3.89 |
 | cfloat<40,11,nosub> | 1.55 | 1.7 | 1.55 | 1.55 | 7.18 (I from j=27) | 3.79 | 3.89 |
 | cfloat<40,11,sat> | 1.55 | 1.7 | 1.55 | 1.55 | 7.18 (I from j=27) | 3.79 | 3.89 |
+| cfloat<40,11,maxexp> | 1.55 | 1.7 | 1.55 | 1.55 | 7.18 (I from j=27) | 3.79 | 3.89 |
+| cfloat<44,11> | 1.78 | 1.78 | 1.78 | 1.78 | 7.9 (I from j=31) | 3.61 | 3.78 |
+| cfloat<44,11,nosub> | 1.78 | 1.78 | 1.78 | 1.78 | 7.9 (I from j=31) | 3.61 | 3.78 |
+| cfloat<44,11,sat> | 1.78 | 1.78 | 1.78 | 1.78 | 7.9 (I from j=31) | 3.61 | 3.78 |
+| cfloat<44,11,maxexp> | 1.78 | 1.78 | 1.78 | 1.78 | 7.9 (I from j=31) | 3.61 | 3.78 |
 | cfloat<48,11> | 1.62 | 1.83 | 1.62 | 1.62 | 7.72 (I from j=35) | 3.82 | 3.97 |
 | cfloat<48,11,nosub> | 1.62 | 1.83 | 1.62 | 1.62 | 7.72 (I from j=35) | 3.82 | 3.97 |
 | cfloat<48,11,sat> | 1.62 | 1.83 | 1.62 | 1.62 | 7.72 (I from j=35) | 3.82 | 3.97 |
+| cfloat<48,11,maxexp> | 1.62 | 1.83 | 1.62 | 1.62 | 7.72 (I from j=35) | 3.82 | 3.97 |
+| cfloat<52,11> | 1.65 | 1.95 | 1.65 | 1.65 | 7.08 (I from j=39) | 3.59 | 3.87 |
+| cfloat<52,11,nosub> | 1.65 | 1.95 | 1.65 | 1.65 | 7.08 (I from j=39) | 3.59 | 3.87 |
+| cfloat<52,11,sat> | 1.65 | 1.95 | 1.65 | 1.65 | 7.08 (I from j=39) | 3.59 | 3.87 |
+| cfloat<52,11,maxexp> | 1.65 | 1.95 | 1.65 | 1.65 | 7.08 (I from j=39) | 3.59 | 3.87 |
 | cfloat<56,11> | 1.67 | 1.67 | 1.67 | 1.67 | 7.98 (I from j=43) | 3.73 | 4.06 |
 | cfloat<56,11,nosub> | 1.67 | 1.67 | 1.67 | 1.67 | 7.98 (I from j=43) | 3.73 | 4.06 |
 | cfloat<56,11,sat> | 1.67 | 1.67 | 1.67 | 1.67 | 7.98 (I from j=43) | 3.73 | 4.06 |
+| cfloat<56,11,maxexp> | 1.67 | 1.67 | 1.67 | 1.67 | 7.98 (I from j=43) | 3.73 | 4.06 |
+| cfloat<60,11> | 1.82 | 1.82 | 1.82 | 1.82 | 8.49 (I from j=47) | 3.59 | 4.04 |
+| cfloat<60,11,nosub> | 1.82 | 1.82 | 1.82 | 1.82 | 8.49 (I from j=47) | 3.59 | 4.04 |
+| cfloat<60,11,sat> | 1.82 | 1.82 | 1.82 | 1.82 | 8.49 (I from j=47) | 3.59 | 4.04 |
+| cfloat<60,11,maxexp> | 1.82 | 1.82 | 1.82 | 1.82 | 8.49 (I from j=47) | 3.59 | 4.04 |
 | cfloat<64,11> | 1.59 | 1.59 | 1.59 | 1.59 | 8.19 (I from j=51) | 3.73 | 3.89 |
 | cfloat<64,11,nosub> | 1.59 | 1.59 | 1.59 | 1.59 | 8.19 (I from j=51) | 3.73 | 3.89 |
 | cfloat<64,11,sat> | 1.59 | 1.59 | 1.59 | 1.59 | 8.19 (I from j=51) | 3.73 | 3.89 |
+| cfloat<64,11,maxexp> | 1.59 | 1.59 | 1.59 | 1.59 | 8.19 (I from j=51) | 3.73 | 3.89 |
 | cfloat<80,15> | 1.71 | 1.71 | 1.71 | 1.71 | 7.95 (I from j=63) | 3.71 | 3.84 |
 | cfloat<80,15,nosub> | 1.71 | 1.71 | 1.71 | 1.71 | 7.95 (I from j=63) | 3.71 | 3.84 |
 | cfloat<80,15,sat> | 1.71 | 1.71 | 1.71 | 1.71 | 7.95 (I from j=63) | 3.71 | 3.84 |
+| cfloat<80,15,maxexp> | 1.71 | 1.71 | 1.71 | 1.71 | 7.95 (I from j=63) | 3.71 | 3.84 |
 | cfloat<128,15> | 1.88 | 2.1 | 1.88 | 1.88 | 7.88 (I from j=111) | 3.8 | 4.08 |
 | cfloat<128,15,nosub> | 1.88 | 2.1 | 1.88 | 1.88 | 7.88 (I from j=111) | 3.8 | 4.08 |
 | cfloat<128,15,sat> | 1.88 | 2.1 | 1.88 | 1.88 | 7.88 (I from j=111) | 3.8 | 4.08 |
+| cfloat<128,15,maxexp> | 1.88 | 2.1 | 1.88 | 1.88 | 7.88 (I from j=111) | 3.8 | 4.08 |
 | cfloat<256,19> | 1.5 | 1.5 | 1.5 | 1.5 | 7.72 (I from j=235) | 2.24 | 3.88 |
 | cfloat<256,19,nosub> | 1.5 | 1.5 | 1.5 | 1.5 | 7.72 (I from j=235) | 2.24 | 3.88 |
 | cfloat<256,19,sat> | 1.5 | 1.5 | 1.5 | 1.5 | 7.72 (I from j=235) | 2.24 | 3.88 |
+| cfloat<256,19,maxexp> | 1.5 | 1.5 | 1.5 | 1.5 | 7.72 (I from j=235) | 2.24 | 3.88 |
 | lns<8,3> | 1.44 | 1.44 | 1.44 | 1.44 | 2.43 (I from j=4) | 2.09 | 2.09 (I from j=8) |
 | lns<16,10> | 1.5 | 1.5 | 1.5 | 1.5 | 2.9 (I from j=8) | 1.97 | 2.9 (I from j=17) |
 | lns<32,23> | 1.49 | 1.49 | 1.49 | 1.49 | 3.14 (I from j=25) | 1.99 | 3.14 |
@@ -575,39 +672,63 @@ power, k = 4096:
 | cfloat<8,4> | 1.9 (6/8 inf) | 7.86 (5/8 inf) | 1.9 (6/8 inf) | 1.9 (6/8 inf) | 6.75 (1/8 inf) | 4.63 | 3.99 |
 | cfloat<8,4,nosub> | 1.9 (6/8 inf) | 7.32 (5/8 inf) | 1.9 (6/8 inf) | 1.9 (6/8 inf) | 6.75 (1/8 inf) | 4.63 | 3.99 |
 | cfloat<8,4,sat> | 2.25e+03 | 2.25e+03 | 2.25e+03 | 2.25e+03 | 1.11e+03 | 4.63 | 3.99 |
+| cfloat<8,4,maxexp> | 1.9 (6/8 inf) | 7.86 (5/8 inf) | 1.9 (6/8 inf) | 1.9 (6/8 inf) | 6.75 (1/8 inf) | 4.63 | 3.99 |
 | cfloat<8,5> | 1.22 (4/8 inf) | 2.49 (1/8 inf) | 1.22 (4/8 inf) | 1.22 (4/8 inf) | 4 | 5.4 | 5.4 |
 | cfloat<8,5,nosub> | 1.22 (4/8 inf) | 2.49 (1/8 inf) | 1.22 (4/8 inf) | 1.22 (4/8 inf) | 4 | 5.4 | 5.4 |
 | cfloat<8,5,sat> | 2.7e+05 | 2.6e+05 | 2.7e+05 | 2.7e+05 | 4 | 5.4 | 5.4 |
+| cfloat<8,5,maxexp> | 1.22 (4/8 inf) | 2.49 (1/8 inf) | 1.22 (4/8 inf) | 1.22 (4/8 inf) | 4 | 5.4 | 5.4 |
 | cfloat<16,5> | 7.96e+03 | 1.6e+04 | 7.96e+03 | 7.96e+03 | 972 (1/8 inf) | 25.3 | 51 |
 | cfloat<16,5,nosub> | 7.96e+03 | 1.6e+04 | 7.96e+03 | 7.96e+03 | 972 (1/8 inf) | 25.3 | 51 |
 | cfloat<16,5,sat> | 7.96e+03 | 1.6e+04 | 7.96e+03 | 7.96e+03 | 3.9e+06 | 25.3 | 51 |
+| cfloat<16,5,maxexp> | 7.96e+03 | 1.6e+04 | 7.96e+03 | 7.96e+03 | 7.4e+06 | 25.3 | 51 |
 | cfloat<24,8> | 1.9e+03 | 2.73e+03 | 1.9e+03 | 1.9e+03 | 2.12e+03 | 608 | 6.77e+03 |
 | cfloat<24,8,nosub> | 1.9e+03 | 2.73e+03 | 1.9e+03 | 1.9e+03 | 2.12e+03 | 608 | 6.77e+03 |
 | cfloat<24,8,sat> | 1.9e+03 | 2.73e+03 | 1.9e+03 | 1.9e+03 | 2.12e+03 | 608 | 6.77e+03 |
+| cfloat<24,8,maxexp> | 1.9e+03 | 2.73e+03 | 1.9e+03 | 1.9e+03 | 2.12e+03 | 608 | 6.77e+03 |
 | cfloat<32,8> | 1.03e+03 | 2.71e+03 | 1.03e+03 | 1.03e+03 | 5.23e+03 | 76.2 | 255 |
 | cfloat<32,8,nosub> | 1.03e+03 | 2.71e+03 | 1.03e+03 | 1.03e+03 | 5.23e+03 | 76.2 | 255 |
 | cfloat<32,8,sat> | 1.03e+03 | 2.71e+03 | 1.03e+03 | 1.03e+03 | 5.23e+03 | 76.2 | 255 |
+| cfloat<32,8,maxexp> | 1.03e+03 | 2.71e+03 | 1.03e+03 | 1.03e+03 | 5.23e+03 | 76.2 | 255 |
 | cfloat<40,11> | 1.09e+03 | 1.09e+03 | 1.09e+03 | 1.09e+03 | 4.31e+03 | 17 | 61.6 |
 | cfloat<40,11,nosub> | 1.09e+03 | 1.09e+03 | 1.09e+03 | 1.09e+03 | 4.31e+03 | 17 | 61.6 |
 | cfloat<40,11,sat> | 1.09e+03 | 1.09e+03 | 1.09e+03 | 1.09e+03 | 4.31e+03 | 17 | 61.6 |
+| cfloat<40,11,maxexp> | 1.09e+03 | 1.09e+03 | 1.09e+03 | 1.09e+03 | 4.31e+03 | 17 | 61.6 |
+| cfloat<44,11> | 1.31e+03 | 3.7e+03 | 1.31e+03 | 1.31e+03 | 2.61e+03 | 2.04e+03 | 3.59e+03 |
+| cfloat<44,11,nosub> | 1.31e+03 | 3.7e+03 | 1.31e+03 | 1.31e+03 | 2.61e+03 | 2.04e+03 | 3.59e+03 |
+| cfloat<44,11,sat> | 1.31e+03 | 3.7e+03 | 1.31e+03 | 1.31e+03 | 2.61e+03 | 2.04e+03 | 3.59e+03 |
+| cfloat<44,11,maxexp> | 1.31e+03 | 3.7e+03 | 1.31e+03 | 1.31e+03 | 2.61e+03 | 2.04e+03 | 3.59e+03 |
 | cfloat<48,11> | 1.47e+03 | 2.44e+03 | 1.47e+03 | 1.47e+03 | 8.16e+03 | 2.17e+03 | 2.66e+03 |
 | cfloat<48,11,nosub> | 1.47e+03 | 2.44e+03 | 1.47e+03 | 1.47e+03 | 8.16e+03 | 2.17e+03 | 2.66e+03 |
 | cfloat<48,11,sat> | 1.47e+03 | 2.44e+03 | 1.47e+03 | 1.47e+03 | 8.16e+03 | 2.17e+03 | 2.66e+03 |
+| cfloat<48,11,maxexp> | 1.47e+03 | 2.44e+03 | 1.47e+03 | 1.47e+03 | 8.16e+03 | 2.17e+03 | 2.66e+03 |
+| cfloat<52,11> | 645 | 3.7e+03 | 645 | 645 | 1.0e+04 | 7.78 | 5.52 |
+| cfloat<52,11,nosub> | 645 | 3.7e+03 | 645 | 645 | 1.0e+04 | 7.78 | 5.52 |
+| cfloat<52,11,sat> | 645 | 3.7e+03 | 645 | 645 | 1.0e+04 | 7.78 | 5.52 |
+| cfloat<52,11,maxexp> | 645 | 3.7e+03 | 645 | 645 | 1.0e+04 | 7.78 | 5.52 |
 | cfloat<56,11> | 878 | 4.08e+03 | 878 | 878 | 1.1e+04 | 121 | 53.1 |
 | cfloat<56,11,nosub> | 878 | 4.08e+03 | 878 | 878 | 1.1e+04 | 121 | 53.1 |
 | cfloat<56,11,sat> | 878 | 4.08e+03 | 878 | 878 | 1.1e+04 | 121 | 53.1 |
+| cfloat<56,11,maxexp> | 878 | 4.08e+03 | 878 | 878 | 1.1e+04 | 121 | 53.1 |
+| cfloat<60,11> | 1.29e+03 | 4.09e+03 | 1.29e+03 | 1.29e+03 | 8.38e+03 | 405 | 6.17e+03 |
+| cfloat<60,11,nosub> | 1.29e+03 | 4.09e+03 | 1.29e+03 | 1.29e+03 | 8.38e+03 | 405 | 6.17e+03 |
+| cfloat<60,11,sat> | 1.29e+03 | 4.09e+03 | 1.29e+03 | 1.29e+03 | 8.38e+03 | 405 | 6.17e+03 |
+| cfloat<60,11,maxexp> | 1.29e+03 | 4.09e+03 | 1.29e+03 | 1.29e+03 | 8.38e+03 | 405 | 6.17e+03 |
 | cfloat<64,11> | 1.77e+03 | 1.77e+03 | 1.77e+03 | 1.77e+03 | 8.04e+03 | 71.1 | 6.93e+03 |
 | cfloat<64,11,nosub> | 1.77e+03 | 1.77e+03 | 1.77e+03 | 1.77e+03 | 8.04e+03 | 71.1 | 6.93e+03 |
 | cfloat<64,11,sat> | 1.77e+03 | 1.77e+03 | 1.77e+03 | 1.77e+03 | 8.04e+03 | 71.1 | 6.93e+03 |
+| cfloat<64,11,maxexp> | 1.77e+03 | 1.77e+03 | 1.77e+03 | 1.77e+03 | 8.04e+03 | 71.1 | 6.93e+03 |
 | cfloat<80,15> | 1.36e+03 | 2.52e+03 | 1.36e+03 | 1.36e+03 | 1.69e+03 | 63.6 | 171 |
 | cfloat<80,15,nosub> | 1.36e+03 | 2.52e+03 | 1.36e+03 | 1.36e+03 | 1.69e+03 | 63.6 | 171 |
 | cfloat<80,15,sat> | 1.36e+03 | 2.52e+03 | 1.36e+03 | 1.36e+03 | 1.69e+03 | 63.6 | 171 |
+| cfloat<80,15,maxexp> | 1.36e+03 | 2.52e+03 | 1.36e+03 | 1.36e+03 | 1.69e+03 | 63.6 | 171 |
 | cfloat<128,15> | 2.26e+03 | 3.76e+03 | 2.26e+03 | 2.26e+03 | 7.73e+03 | 97.4 | 117 |
 | cfloat<128,15,nosub> | 2.26e+03 | 3.76e+03 | 2.26e+03 | 2.26e+03 | 7.73e+03 | 97.4 | 117 |
 | cfloat<128,15,sat> | 2.26e+03 | 3.76e+03 | 2.26e+03 | 2.26e+03 | 7.73e+03 | 97.4 | 117 |
+| cfloat<128,15,maxexp> | 2.26e+03 | 3.76e+03 | 2.26e+03 | 2.26e+03 | 7.73e+03 | 97.4 | 117 |
 | cfloat<256,19> | 1.55e+03 | 2.4e+03 | 1.55e+03 | 1.55e+03 | 4.92e+03 | 3.61e+03 | 2.69e+03 |
 | cfloat<256,19,nosub> | 1.55e+03 | 2.4e+03 | 1.55e+03 | 1.55e+03 | 4.92e+03 | 3.61e+03 | 2.69e+03 |
 | cfloat<256,19,sat> | 1.55e+03 | 2.4e+03 | 1.55e+03 | 1.55e+03 | 4.92e+03 | 3.61e+03 | 2.69e+03 |
+| cfloat<256,19,maxexp> | 1.55e+03 | 2.4e+03 | 1.55e+03 | 1.55e+03 | 4.92e+03 | 3.61e+03 | 2.69e+03 |
 | lns<8,3> | 2.99e+03 | 2.99e+03 | 2.99e+03 | 2.99e+03 | 2.04e+03 | 871 | 1.86e+03 |
 | lns<16,10> | 4.15e+03 | 3.08e+03 | 4.15e+03 | 4.15e+03 | 2.2e+04 | 2.2e+04 | 2.2e+04 |
 | lns<32,23> | 2.05e+03 | 2.65e+03 | 2.05e+03 | 2.05e+03 | 4.1e+03 | 4.1e+03 | 4.1e+03 |
@@ -637,39 +758,63 @@ product, k = 1024:
 | cfloat<8,4> | 2.1e+04 | 7.5e+04 | 1.0e+04 | 2.1e+04 | 6.8e+04 (2/4 inf) | - (4/4 inf) | 1.04e+03 |
 | cfloat<8,4,nosub> | 1.9e+04 | 5.1e+04 | 2.2e+04 | 1.9e+04 | 3.4e+05 (2/4 inf) | - (4/4 inf) | 826 |
 | cfloat<8,4,sat> | 2.1e+04 | 7.5e+04 | 1.0e+04 | 2.1e+04 | 4.2e+05 | 1.8e+05 | 1.04e+03 |
+| cfloat<8,4,maxexp> | 2.1e+04 | 7.5e+04 | 1.0e+04 | 2.1e+04 | 9.4e+05 | - (4/4 inf) | 1.04e+03 |
 | cfloat<8,5> | 1.3e+08 | 4.0e+05 | 6.6e+07 | 1.3e+08 | 4.6e+04 | - (4/4 inf) | 7.0e+06 |
 | cfloat<8,5,nosub> | 1.3e+08 | 4.0e+05 | 6.6e+07 | 1.3e+08 | 4.6e+04 | - (4/4 inf) | 7.0e+06 |
 | cfloat<8,5,sat> | 1.3e+08 | 4.0e+05 | 6.6e+07 | 1.3e+08 | 4.6e+04 | 1.4e+10 | 7.0e+06 |
+| cfloat<8,5,maxexp> | 1.3e+08 | 4.0e+05 | 6.6e+07 | 1.3e+08 | 4.6e+04 | - (4/4 inf) | 7.0e+06 |
 | cfloat<16,5> | 164 | 191 | 165 | 164 | 94.6 | 130 | 88.9 |
 | cfloat<16,5,nosub> | 166 | 194 | 165 | 166 | 89.9 | 122 | 105 |
 | cfloat<16,5,sat> | 164 | 191 | 165 | 164 | 94.6 | 130 | 88.9 |
+| cfloat<16,5,maxexp> | 164 | 191 | 165 | 164 | 94.6 | 130 | 88.9 |
 | cfloat<24,8> | 173 | 136 | 169 | 173 | 87.8 | 92.5 | 88.1 |
 | cfloat<24,8,nosub> | 173 | 136 | 169 | 173 | 87.8 | 92.5 | 88.1 |
 | cfloat<24,8,sat> | 173 | 136 | 169 | 173 | 87.8 | 92.5 | 88.1 |
+| cfloat<24,8,maxexp> | 173 | 136 | 169 | 173 | 87.8 | 92.5 | 88.1 |
 | cfloat<32,8> | 174 | 144 | 168 | 174 | 89.4 | 116 | 89.9 |
 | cfloat<32,8,nosub> | 174 | 144 | 168 | 174 | 89.4 | 116 | 89.9 |
 | cfloat<32,8,sat> | 174 | 144 | 168 | 174 | 89.4 | 116 | 89.9 |
+| cfloat<32,8,maxexp> | 174 | 144 | 168 | 174 | 89.4 | 116 | 89.9 |
 | cfloat<40,11> | 160 | 149 | 159 | 160 | 97.5 | 109 | 87.8 |
 | cfloat<40,11,nosub> | 160 | 149 | 159 | 160 | 97.5 | 109 | 87.8 |
 | cfloat<40,11,sat> | 160 | 149 | 159 | 160 | 97.5 | 109 | 87.8 |
+| cfloat<40,11,maxexp> | 160 | 149 | 159 | 160 | 97.5 | 109 | 87.8 |
+| cfloat<44,11> | 167 | 123 | 163 | 167 | 94.3 | 114 | 94 |
+| cfloat<44,11,nosub> | 167 | 123 | 163 | 167 | 94.3 | 114 | 94 |
+| cfloat<44,11,sat> | 167 | 123 | 163 | 167 | 94.3 | 114 | 94 |
+| cfloat<44,11,maxexp> | 167 | 123 | 163 | 167 | 94.3 | 114 | 94 |
 | cfloat<48,11> | 171 | 131 | 154 | 171 | 97 | 96.8 | 94.6 |
 | cfloat<48,11,nosub> | 171 | 131 | 154 | 171 | 97 | 96.8 | 94.6 |
 | cfloat<48,11,sat> | 171 | 131 | 154 | 171 | 97 | 96.8 | 94.6 |
+| cfloat<48,11,maxexp> | 171 | 131 | 154 | 171 | 97 | 96.8 | 94.6 |
+| cfloat<52,11> | 178 | 139 | 182 | 178 | 109 | 107 | 101 |
+| cfloat<52,11,nosub> | 178 | 139 | 182 | 178 | 109 | 107 | 101 |
+| cfloat<52,11,sat> | 178 | 139 | 182 | 178 | 109 | 107 | 101 |
+| cfloat<52,11,maxexp> | 178 | 139 | 182 | 178 | 109 | 107 | 101 |
 | cfloat<56,11> | 172 | 120 | 173 | 172 | 90.2 | 102 | 87.1 |
 | cfloat<56,11,nosub> | 172 | 120 | 173 | 172 | 90.2 | 102 | 87.1 |
 | cfloat<56,11,sat> | 172 | 120 | 173 | 172 | 90.2 | 102 | 87.1 |
+| cfloat<56,11,maxexp> | 172 | 120 | 173 | 172 | 90.2 | 102 | 87.1 |
+| cfloat<60,11> | 167 | 125 | 171 | 167 | 93.1 | 103 | 109 |
+| cfloat<60,11,nosub> | 167 | 125 | 171 | 167 | 93.1 | 103 | 109 |
+| cfloat<60,11,sat> | 167 | 125 | 171 | 167 | 93.1 | 103 | 109 |
+| cfloat<60,11,maxexp> | 167 | 125 | 171 | 167 | 93.1 | 103 | 109 |
 | cfloat<64,11> | 164 | 112 | 163 | 164 | 82 | 120 | 79.5 |
 | cfloat<64,11,nosub> | 164 | 112 | 163 | 164 | 82 | 120 | 79.5 |
 | cfloat<64,11,sat> | 164 | 112 | 163 | 164 | 82 | 120 | 79.5 |
+| cfloat<64,11,maxexp> | 164 | 112 | 163 | 164 | 82 | 120 | 79.5 |
 | cfloat<80,15> | 240 | 43.2 | 233 | 240 | 103 | 104 | 105 |
 | cfloat<80,15,nosub> | 240 | 43.2 | 233 | 240 | 103 | 104 | 105 |
 | cfloat<80,15,sat> | 240 | 43.2 | 233 | 240 | 103 | 104 | 105 |
+| cfloat<80,15,maxexp> | 240 | 43.2 | 233 | 240 | 103 | 104 | 105 |
 | cfloat<128,15> | 47.6 | 43.5 | 46.1 | 47.6 | 85.2 | 87.2 | 94.3 |
 | cfloat<128,15,nosub> | 47.6 | 43.5 | 46.1 | 47.6 | 85.2 | 87.2 | 94.3 |
 | cfloat<128,15,sat> | 47.6 | 43.5 | 46.1 | 47.6 | 85.2 | 87.2 | 94.3 |
+| cfloat<128,15,maxexp> | 47.6 | 43.5 | 46.1 | 47.6 | 85.2 | 87.2 | 94.3 |
 | cfloat<256,19> | 38.1 | 43.6 | 31.7 | 38.1 | 83.9 | 97.5 | 78 |
 | cfloat<256,19,nosub> | 38.1 | 43.6 | 31.7 | 38.1 | 83.9 | 97.5 | 78 |
 | cfloat<256,19,sat> | 38.1 | 43.6 | 31.7 | 38.1 | 83.9 | 97.5 | 78 |
+| cfloat<256,19,maxexp> | 38.1 | 43.6 | 31.7 | 38.1 | 83.9 | 97.5 | 78 |
 | lns<8,3> | 286 | 1.5e+04 | 293 | 286 | 1.2e+04 | 2.1e+05 | 591 |
 | lns<16,10> | 39.3 | 41.8 | 39.1 | 39.3 | 114 | 131 | 120 |
 | lns<32,23> | 33.4 | 41.9 | 33.6 | 33.4 | 125 | 132 | 125 |
